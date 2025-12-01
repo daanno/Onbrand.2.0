@@ -1,0 +1,47 @@
+{
+  "name": "act-2.0-monorepo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ACT 2.0 - AI-powered brand management platform",
+  "workspaces": [
+    "brands/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter acme-frontend dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:ui": "pnpm -r test:ui",
+    "test:coverage": "pnpm -r test:coverage",
+    "test:e2e": "playwright test",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,css,scss}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,css,scss}\"",
+    "type-check": "pnpm -r type-check",
+    "qa": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test",
+    "qa:fix": "pnpm type-check && pnpm lint:fix && pnpm format"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "playwright": "^1.41.0",
+    "prettier": "^3.2.4",
+    "prettier-plugin-tailwindcss": "^0.5.11",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
+

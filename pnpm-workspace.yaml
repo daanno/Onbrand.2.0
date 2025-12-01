@@ -1,0 +1,4 @@
+packages:
+  - 'brands/*'
+  - 'packages/*'
+
