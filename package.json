@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm --filter acme-frontend dev",
+    "dev": "pnpm --filter act-frontend dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:ui": "pnpm -r test:ui",

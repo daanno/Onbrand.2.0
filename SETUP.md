@@ -206,7 +206,7 @@ pnpm install
 
 This installs dependencies for:
 - Root workspace
-- `brands/acme-frontend`
+- `brands/act-frontend`
 - `packages/auth`
 - `packages/tenant-config`
 - `packages/ui`
@@ -234,7 +234,7 @@ Start the development server:
 pnpm dev
 
 # Or directly from frontend
-cd brands/acme-frontend
+cd brands/act-frontend
 pnpm dev
 ```
 
@@ -248,7 +248,7 @@ The app will be available at:
 
 ```bash
 # Development
-pnpm dev                    # Start dev server (acme-frontend)
+pnpm dev                    # Start dev server (act-frontend)
 
 # Building
 pnpm build                  # Build all packages
@@ -273,7 +273,7 @@ pnpm qa:fix                # Run QA with auto-fixes
 
 ```bash
 # Run commands for specific package
-pnpm --filter acme-frontend dev
+pnpm --filter act-frontend dev
 pnpm --filter @act/auth type-check
 pnpm --filter @act/tenant-config lint
 ```
@@ -330,7 +330,7 @@ git push origin feature/your-feature-name
 ```
 Onbrand.2.0/
 ├── brands/                    # Brand-specific frontend applications
-│   └── acme-frontend/        # Next.js 15 app
+│   └── act-frontend/        # Next.js 15 app
 │       ├── app/              # Next.js App Router
 │       │   ├── api/          # API routes (AI SDK endpoints)
 │       │   │   ├── chat/     # Chat API with streaming
@@ -452,7 +452,7 @@ pnpm install
 pnpm type-check
 
 # Check specific package
-pnpm --filter acme-frontend type-check
+pnpm --filter act-frontend type-check
 ```
 
 ### Issue: Supabase Connection Failed

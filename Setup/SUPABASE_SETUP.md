@@ -171,7 +171,7 @@ CREATE TABLE public.brands (
 
 -- Insert default brands
 INSERT INTO public.brands (id, name, display_name, primary_color) VALUES
-  ('acme', 'acme', 'Acme Labs', '#2563eb'),
+  ('act', 'act', 'ACT', '#2563eb'),
   ('globex', 'globex', 'Globex Corp', '#7c3aed');
 ```
 
@@ -224,7 +224,7 @@ BEGIN
   INSERT INTO public.brand_users (user_id, brand_id, role)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'brand_id', 'acme'), -- Default to 'acme'
+    COALESCE(NEW.raw_user_meta_data->>'brand_id', 'act'), -- Default to 'act'
     'user'
   )
   ON CONFLICT (user_id, brand_id) DO NOTHING;
@@ -468,14 +468,14 @@ await supabase.auth.signUp({
   password: 'password123',
   options: {
     data: {
-      brand_id: 'acme',  // From subdomain, invite link, or selection
+      brand_id: 'act',  // From subdomain, invite link, or selection
       full_name: 'John Doe'
     }
   }
 });
 
 // Trigger automatically creates:
-// INSERT INTO brand_users (user_id, brand_id, role) VALUES (user.id, 'acme', 'user');
+// INSERT INTO brand_users (user_id, brand_id, role) VALUES (user.id, 'act', 'user');
 ```
 
 ### Querying Brand Data
@@ -491,7 +491,7 @@ const { data: content } = await supabase
 const { data: projects } = await supabase
   .from('projects')
   .select('*')
-  .eq('brand_id', 'acme');
+  .eq('brand_id', 'act');
 ```
 
 ---
@@ -517,7 +517,7 @@ Allowed redirect URLs (staging):
 
 Allowed redirect URLs (production):
 - https://app.actonbrand.com
-- https://acme.actonbrand.com
+- https://act.actonbrand.com
 - https://globex.actonbrand.com
 ```
 
@@ -733,7 +733,7 @@ SELECT * FROM pg_trigger WHERE tgname = 'on_auth_user_created';
 
 -- Manually assign user
 INSERT INTO public.brand_users (user_id, brand_id, role)
-VALUES ('user-uuid-here', 'acme', 'user');
+VALUES ('user-uuid-here', 'act', 'user');
 ```
 
 ### Issue: Environment variables not loading

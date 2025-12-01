@@ -15,7 +15,7 @@ export default function GitHubSignIn() {
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           // Pass brand_id for auto-assignment via trigger
-          brand_id: 'acme', // Or dynamically determine from subdomain/route
+          brand_id: 'act', // Or dynamically determine from subdomain/route
         },
       },
     });

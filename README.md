@@ -7,7 +7,7 @@ AI-powered brand management platform built with Next.js 15, Supabase, and Vercel
 ```
 Onbrand.2.0/
 ├── brands/                    # Brand-specific frontend applications
-│   └── acme-frontend/        # Example brand app (Next.js 15)
+│   └── act-frontend/        # Example brand app (Next.js 15)
 ├── packages/                 # Shared packages
 │   ├── auth/                # Authentication package
 │   ├── tenant-config/        # Brand configuration
@@ -69,8 +69,8 @@ supabase link --project-ref pyvobennsmzyvtaceopn
 # Start the frontend
 pnpm dev
 
-# Or start from root (runs acme-frontend)
-pnpm --filter acme-frontend dev
+# Or start from root (runs act-frontend)
+pnpm --filter act-frontend dev
 ```
 
 The app will be available at `http://localhost:3000`

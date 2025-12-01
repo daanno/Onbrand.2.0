@@ -9,15 +9,15 @@ Each brand can have **multiple n8n workflows**, each with its own unique webhook
 ## Architecture
 
 ```
-Brand: ACME
+Brand: ACT
 ├── Workflow 1: Content Generator
-│   └── Webhook: https://n8n.cloud/webhook/acme-content-gen-abc123
+│   └── Webhook: https://n8n.cloud/webhook/act-content-gen-abc123
 ├── Workflow 2: Social Media Poster
-│   └── Webhook: https://n8n.cloud/webhook/acme-social-post-def456
+│   └── Webhook: https://n8n.cloud/webhook/act-social-post-def456
 ├── Workflow 3: Email Campaign
-│   └── Webhook: https://n8n.cloud/webhook/acme-email-campaign-ghi789
+│   └── Webhook: https://n8n.cloud/webhook/act-email-campaign-ghi789
 └── Workflow 4: Brand Analytics
-    └── Webhook: https://n8n.cloud/webhook/acme-analytics-jkl012
+    └── Webhook: https://n8n.cloud/webhook/act-analytics-jkl012
 
 Brand: Globex
 ├── Workflow 1: Content Generator
@@ -43,9 +43,9 @@ For each workflow you want to create:
 1. **Create new workflow** in n8n
 2. **Add Webhook trigger node**
    - Method: `POST`
-   - Path: `/acme-content-generator` (unique per workflow)
+   - Path: `/act-content-generator` (unique per workflow)
    - Response Mode: `On Received`
-3. **Copy the webhook URL** (e.g., `https://your-n8n.cloud/webhook/acme-content-generator`)
+3. **Copy the webhook URL** (e.g., `https://your-n8n.cloud/webhook/act-content-generator`)
 4. **Build your workflow** (add nodes for your logic)
 5. **Activate the workflow**
 
@@ -59,39 +59,39 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Register Content Generator workflow for ACME
+// Register Content Generator workflow for ACT
 await supabase.from('n8n_workflows').insert({
-  brand_id: 'acme',
-  workflow_id: 'content-generator-acme',
+  brand_id: 'act',
+  workflow_id: 'content-generator-act',
   workflow_name: 'Content Generator',
   description: 'Generate blog posts, social media content, and marketing copy',
-  webhook_url: 'https://your-n8n.cloud/webhook/acme-content-generator',
+  webhook_url: 'https://your-n8n.cloud/webhook/act-content-generator',
   webhook_method: 'POST',
   workflow_type: 'content_generation',
   is_active: true,
   tags: ['content', 'ai', 'marketing'],
 });
 
-// Register Social Media Poster workflow for ACME
+// Register Social Media Poster workflow for ACT
 await supabase.from('n8n_workflows').insert({
-  brand_id: 'acme',
-  workflow_id: 'social-poster-acme',
+  brand_id: 'act',
+  workflow_id: 'social-poster-act',
   workflow_name: 'Social Media Poster',
   description: 'Post content to Twitter, LinkedIn, and Facebook',
-  webhook_url: 'https://your-n8n.cloud/webhook/acme-social-poster',
+  webhook_url: 'https://your-n8n.cloud/webhook/act-social-poster',
   webhook_method: 'POST',
   workflow_type: 'social_posting',
   is_active: true,
   tags: ['social', 'automation'],
 });
 
-// Register Email Campaign workflow for ACME
+// Register Email Campaign workflow for ACT
 await supabase.from('n8n_workflows').insert({
-  brand_id: 'acme',
-  workflow_id: 'email-campaign-acme',
+  brand_id: 'act',
+  workflow_id: 'email-campaign-act',
   workflow_name: 'Email Campaign Manager',
   description: 'Send targeted email campaigns to subscribers',
-  webhook_url: 'https://your-n8n.cloud/webhook/acme-email-campaign',
+  webhook_url: 'https://your-n8n.cloud/webhook/act-email-campaign',
   webhook_method: 'POST',
   workflow_type: 'email_campaign',
   is_active: true,
@@ -111,7 +111,7 @@ const response = await fetch('/api/n8n/trigger', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_type: 'content_generation',
     data: {
       topic: 'AI in Marketing',
@@ -126,7 +126,7 @@ const response = await fetch('/api/n8n/trigger', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_name: 'Social Media Poster',
     data: {
       platforms: ['twitter', 'linkedin'],
@@ -143,7 +143,7 @@ const response = await fetch('/api/n8n/trigger', {
 const { data: workflow } = await supabase
   .from('n8n_workflows')
   .select('*')
-  .eq('brand_id', 'acme')
+  .eq('brand_id', 'act')
   .eq('workflow_type', 'content_generation')
   .single();
 
@@ -152,7 +152,7 @@ const response = await fetch(workflow.webhook_url, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     topic: 'AI in Marketing',
   }),
 });
@@ -172,9 +172,9 @@ Webhook → Fetch Brand Guidelines → OpenAI (Generate) → Format → Save to 
 **Registration:**
 ```typescript
 {
-  brand_id: 'acme',
+  brand_id: 'act',
   workflow_name: 'Content Generator',
-  webhook_url: 'https://n8n.cloud/webhook/acme-content-gen',
+  webhook_url: 'https://n8n.cloud/webhook/act-content-gen',
   workflow_type: 'content_generation'
 }
 ```
@@ -184,7 +184,7 @@ Webhook → Fetch Brand Guidelines → OpenAI (Generate) → Format → Save to 
 await fetch('/api/n8n/trigger', {
   method: 'POST',
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_type: 'content_generation',
     data: {
       content_type: 'blog_post',
@@ -205,9 +205,9 @@ Webhook → Format for Each Platform → Twitter API → LinkedIn API → Facebo
 **Registration:**
 ```typescript
 {
-  brand_id: 'acme',
+  brand_id: 'act',
   workflow_name: 'Social Media Poster',
-  webhook_url: 'https://n8n.cloud/webhook/acme-social-post',
+  webhook_url: 'https://n8n.cloud/webhook/act-social-post',
   workflow_type: 'social_posting'
 }
 ```
@@ -217,7 +217,7 @@ Webhook → Format for Each Platform → Twitter API → LinkedIn API → Facebo
 await fetch('/api/n8n/trigger', {
   method: 'POST',
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_type: 'social_posting',
     data: {
       content: 'Exciting news! 🎉',
@@ -238,9 +238,9 @@ Webhook → Fetch Recipients → Personalize Email → Resend API → Track Open
 **Registration:**
 ```typescript
 {
-  brand_id: 'acme',
+  brand_id: 'act',
   workflow_name: 'Email Campaign Manager',
-  webhook_url: 'https://n8n.cloud/webhook/acme-email-campaign',
+  webhook_url: 'https://n8n.cloud/webhook/act-email-campaign',
   workflow_type: 'email_campaign'
 }
 ```
@@ -250,7 +250,7 @@ Webhook → Fetch Recipients → Personalize Email → Resend API → Track Open
 await fetch('/api/n8n/trigger', {
   method: 'POST',
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_type: 'email_campaign',
     data: {
       campaign_name: 'Product Launch',
@@ -271,9 +271,9 @@ Schedule (Daily) → Fetch Social Mentions → Analyze Sentiment → Generate Re
 **Registration:**
 ```typescript
 {
-  brand_id: 'acme',
+  brand_id: 'act',
   workflow_name: 'Daily Brand Analytics',
-  webhook_url: 'https://n8n.cloud/webhook/acme-analytics',
+  webhook_url: 'https://n8n.cloud/webhook/act-analytics',
   workflow_type: 'brand_analysis'
 }
 ```
@@ -283,7 +283,7 @@ Schedule (Daily) → Fetch Social Mentions → Analyze Sentiment → Generate Re
 await fetch('/api/n8n/trigger', {
   method: 'POST',
   body: JSON.stringify({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_type: 'brand_analysis',
     data: {
       date_range: 'last_7_days',
@@ -299,7 +299,7 @@ await fetch('/api/n8n/trigger', {
 
 ```typescript
 // Get all active workflows for a brand
-const response = await fetch('/api/n8n/trigger?brand_id=acme');
+const response = await fetch('/api/n8n/trigger?brand_id=act');
 const { workflows } = await response.json();
 
 console.log(workflows);
@@ -359,7 +359,7 @@ await supabase
 const { data: stats } = await supabase
   .from('n8n_workflows')
   .select('workflow_name, trigger_count, last_triggered_at')
-  .eq('brand_id', 'acme')
+  .eq('brand_id', 'act')
   .order('trigger_count', { ascending: false });
 ```
 
@@ -370,7 +370,7 @@ const { data: stats } = await supabase
 ### 1. **Naming Convention**
 Use consistent naming for webhook paths:
 - `{brand}-{workflow-type}-{unique-id}`
-- Example: `acme-content-gen-abc123`
+- Example: `act-content-gen-abc123`
 
 ### 2. **Workflow Organization**
 Group workflows by type:

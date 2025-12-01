@@ -83,7 +83,7 @@ import { triggerN8nWorkflow } from '@act/auth/n8n-utils';
 const result = await triggerN8nWorkflow({
   workflowId: 'content-generator',
   data: {
-    brand_id: 'acme',
+    brand_id: 'act',
     content_type: 'blog_post',
     topic: 'AI in Marketing',
     tone: 'professional',
@@ -104,7 +104,7 @@ import { triggerContentGenerationWorkflow } from '@act/auth/n8n-utils';
 
 // Generate content for a brand
 const result = await triggerContentGenerationWorkflow(
-  'acme',
+  'act',
   'social_post',
   'Create a LinkedIn post about our new product launch',
   {
@@ -122,7 +122,7 @@ import { triggerBrandAnalysisWorkflow } from '@act/auth/n8n-utils';
 
 // Analyze brand sentiment
 const result = await triggerBrandAnalysisWorkflow(
-  'acme',
+  'act',
   'sentiment_analysis',
   {
     sources: ['twitter', 'reddit', 'news'],
@@ -138,7 +138,7 @@ import { triggerSocialPostingWorkflow } from '@act/auth/n8n-utils';
 
 // Post to multiple platforms
 const result = await triggerSocialPostingWorkflow(
-  'acme',
+  'act',
   ['twitter', 'linkedin', 'facebook'],
   'Excited to announce our new product! 🚀',
   ['https://example.com/image.jpg']
@@ -152,13 +152,13 @@ import { triggerEmailCampaignWorkflow } from '@act/auth/n8n-utils';
 
 // Send welcome email campaign
 const result = await triggerEmailCampaignWorkflow(
-  'acme',
+  'act',
   'welcome_series',
   ['user1@example.com', 'user2@example.com'],
   'welcome_email_template',
   {
     user_name: 'John Doe',
-    company: 'ACME Labs',
+    company: 'ACT Labs',
   }
 );
 ```
@@ -214,7 +214,7 @@ const supabase = createClient(
 const { data: workflow } = await supabase
   .from('n8n_workflows')
   .insert({
-    brand_id: 'acme',
+    brand_id: 'act',
     workflow_id: 'content-generator',
     workflow_name: 'Content Generator',
     description: 'Generate brand-specific content',
@@ -241,7 +241,7 @@ POST /api/n8n/webhook
 {
   "workflow_id": "content-generator",
   "execution_id": "12345",
-  "brand_id": "acme",
+  "brand_id": "act",
   "status": "success",
   "output": {
     "generated_content": "...",
@@ -329,7 +329,7 @@ Trigger → Format for Each Platform → Post to All → Track Results
 Always include `brand_id` in workflow data:
 ```typescript
 const data = {
-  brand_id: 'acme',
+  brand_id: 'act',
   // ... other data
 };
 ```

@@ -40,7 +40,7 @@ Vector embeddings for RAG semantic search (1536 dimensions for OpenAI).
 ```sql
 SELECT * FROM match_brand_documents(
   query_embedding,
-  'acme',  -- brand_id
+  'act',  -- brand_id
   0.7,     -- similarity threshold
   5        -- result count
 );
@@ -139,7 +139,7 @@ import { searchBrandDocuments } from '@act/auth/rag-utils';
 // Search for relevant context
 const results = await searchBrandDocuments(
   supabase,
-  'acme',
+  'act',
   'What are our brand colors?',
   0.7,  // similarity threshold
   5     // number of results
@@ -161,12 +161,12 @@ const { data: job } = await supabase
   .from('lora_training_jobs')
   .insert({
     brand_id: brandId,
-    name: 'ACME Brand Style LoRA',
+    name: 'ACT Brand Style LoRA',
     model_type: 'flux',
     training_config: {
       steps: 1000,
       learning_rate: 0.0001,
-      trigger_word: 'acme_style',
+      trigger_word: 'act_style',
     },
     training_asset_ids: trainingImages.map(img => img.id),
     training_images_count: trainingImages.length,

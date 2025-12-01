@@ -2,11 +2,11 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Get brand_id from user metadata, default to 'acme' if not provided
+  -- Get brand_id from user metadata, default to 'act' if not provided
   INSERT INTO public.brand_users (user_id, brand_id, role)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'brand_id', 'acme'),
+    COALESCE(NEW.raw_user_meta_data->>'brand_id', 'act'),
     COALESCE(NEW.raw_user_meta_data->>'role', 'user')
   )
   ON CONFLICT (user_id, brand_id) DO NOTHING;

@@ -5,7 +5,7 @@
 ```
 ACT.test/
 ├── brands/
-│   └── acme-frontend/           # ACME brand application
+│   └── act-frontend/           # ACT brand application
 │       ├── src/
 │       │   └── app/
 │       │       ├── auth-wrapper.tsx
@@ -61,7 +61,7 @@ ACT.test/
 - ✅ Brand stored in user metadata for context
 
 ### 3. **Database Setup**
-- ✅ `brands` table with ACME and Globex
+- ✅ `brands` table with ACT and Globex
 - ✅ `brand_users` table for user-brand mapping
 - ✅ Trigger `on_auth_user_created` auto-assigns users
 - ✅ RLS policies for brand isolation
@@ -104,15 +104,15 @@ ACT.test/
 **File:** `packages/tenant-config/src/index.ts`
 
 ```typescript
-export type BrandId = 'acme' | 'globex';
+export type BrandId = 'act' | 'globex';
 
 const brands: Record<BrandId, BrandConfig> = {
-  acme: {
-    id: 'acme',
-    name: 'acme',
-    displayName: 'Acme Labs',
+  act: {
+    id: 'act',
+    name: 'act',
+    displayName: 'ACT',
     primaryColor: '#2563eb',
-    logoPath: '/brands/acme/logo.svg',
+    logoPath: '/brands/act/logo.svg',
     supabaseUrl: 'https://xlakgtzjsjlswvgjicrs.supabase.co',
     supabaseAnonKey: 'eyJhbGci...',
     // No email domain restrictions - any email can sign up
@@ -135,7 +135,7 @@ const brands: Record<BrandId, BrandConfig> = {
 ```typescript
 // 1. User signs up (brand determined by app context, not email)
 const email = 'john@anyemail.com';  // Any email allowed
-const brandId = 'acme';  // From subdomain, invite link, or brand selection
+const brandId = 'act';  // From subdomain, invite link, or brand selection
 
 // 2. Supabase creates user with brand metadata
 await supabase.auth.signUp({
@@ -153,14 +153,14 @@ await supabase.auth.signUp({
 
 // 4. User logs in - brand is available
 const { user } = useAuth();
-const userBrand = user.user_metadata?.brand_id; // 'acme'
+const userBrand = user.user_metadata?.brand_id; // 'act'
 ```
 
 **Brand Determination Methods:**
-- Subdomain: `acme.app.com` → ACME brand
-- Invite link: `/signup?brand=acme` → ACME brand
+- Subdomain: `act.app.com` → ACT brand
+- Invite link: `/signup?brand=act` → ACT brand
 - Manual selection: User chooses brand during signup
-- App context: Brand frontend (`brands/acme-frontend`) → ACME brand
+- App context: Brand frontend (`brands/act-frontend`) → ACT brand
 ```
 
 ### **Database Schema**
@@ -249,8 +249,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 # From project root
 cd /Users/dwayne/Documents/Playground/ACT.test
 
-# Start ACME frontend
-npm run dev:acme
+# Start ACT frontend
+npm run dev:act
 
 # Open browser
 open http://localhost:3000
@@ -260,11 +260,11 @@ open http://localhost:3000
 
 1. Go to http://localhost:3000
 2. Sign up with any email:
-   - `test@gmail.com` / `password123` → Assigned to ACME (default brand for this frontend)
-   - `user@company.com` / `password123` → Assigned to ACME (any email works)
+   - `test@gmail.com` / `password123` → Assigned to ACT (default brand for this frontend)
+   - `user@company.com` / `password123` → Assigned to ACT (any email works)
 3. Verify in database (after fixing email confirmation)
 
-**Note:** Brand is determined by which frontend app you're using (`brands/acme-frontend` = ACME), not by email domain.
+**Note:** Brand is determined by which frontend app you're using (`brands/act-frontend` = ACT), not by email domain.
 
 ---
 
@@ -279,8 +279,8 @@ open http://localhost:3000
 - `packages/tenant-config/src/index.ts` - Brand configs & email domains
 
 ### **Frontend**
-- `brands/acme-frontend/src/app/auth-wrapper.tsx` - AuthProvider wrapper
-- `brands/acme-frontend/src/app/page.tsx` - Main page with login/signup
+- `brands/act-frontend/src/app/auth-wrapper.tsx` - AuthProvider wrapper
+- `brands/act-frontend/src/app/page.tsx` - Main page with login/signup
 
 ### **Database**
 - `supabase/FINAL_SETUP.sql` - Complete database setup
@@ -298,7 +298,7 @@ open http://localhost:3000
 ### **Before (Hardcoded)**
 ```typescript
 // Each brand needed separate app
-<AuthProvider brandId="acme">  // ❌ Hardcoded
+<AuthProvider brandId="act">  // ❌ Hardcoded
   {children}
 </AuthProvider>
 ```

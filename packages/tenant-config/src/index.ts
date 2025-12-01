@@ -1,4 +1,4 @@
-export type BrandId = "acme" | "globex";
+export type BrandId = "act" | "globex";
 
 export interface BrandConfig {
   id: BrandId;
@@ -11,12 +11,12 @@ export interface BrandConfig {
 }
 
 const brands: Record<BrandId, BrandConfig> = {
-  acme: {
-    id: "acme",
-    name: "acme",
-    displayName: "Acme Labs",
+  act: {
+    id: "act",
+    name: "act",
+    displayName: "ACT",
     primaryColor: "#2563eb",
-    logoPath: "/brands/acme/logo.svg",
+    logoPath: "/brands/act/logo.svg",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
   },

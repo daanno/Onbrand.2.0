@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS public.brands (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default brands (ACME and Globex as examples)
+-- Insert default brands (ACT and Globex as examples)
 INSERT INTO public.brands (id, name, display_name, primary_color) VALUES
-  ('acme', 'acme', 'Acme Labs', '#2563eb'),
+  ('act', 'act', 'ACT', '#2563eb'),
   ('globex', 'globex', 'Globex Corp', '#7c3aed')
 ON CONFLICT (id) DO NOTHING;
 
