@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.leonardo.ai',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   experimental: {
     // Enable if needed for AI SDK
   },
