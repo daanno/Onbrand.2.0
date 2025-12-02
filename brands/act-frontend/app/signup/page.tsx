@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Github } from 'lucide-react';
+import { Github, Eye, EyeOff, RefreshCw, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 import { detectBrandId, getBrandCallbackUrl } from '@/lib/brand';
+import { generatePassword, calculatePasswordStrength } from '@/lib/password-generator';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,9 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [supabase, setSupabase] = useState<any>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -26,6 +30,24 @@ export default function SignUpPage() {
     );
     setSupabase(client);
   }, []);
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword({ length: 16 });
+    setPassword(newPassword);
+    setConfirmPassword(newPassword);
+    setShowPassword(true);
+    setShowConfirmPassword(true);
+  };
+
+  const handleCopyPassword = async () => {
+    if (password) {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const passwordStrength = password ? calculatePasswordStrength(password) : null;
 
   const handleGitHubSignUp = async () => {
     if (!supabase) return;
@@ -201,38 +223,114 @@ export default function SignUpPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                placeholder="Password (min. 6 characters)"
-              />
+            {/* Password Field with Generator */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGeneratePassword}
+                    className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-black transition-colors"
+                    title="Generate strong password"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Generate
+                  </button>
+                  {password && (
+                    <button
+                      type="button"
+                      onClick={handleCopyPassword}
+                      className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-black transition-colors"
+                      title="Copy password"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="h-3 w-3 text-green-600" />
+                          <span className="text-green-600">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3.5 pr-10 text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                  placeholder="Enter password or generate one"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {/* Password Strength Indicator */}
+              {passwordStrength && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Password strength:</span>
+                    <span style={{ color: passwordStrength.color }} className="font-medium">
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{
+                        width: `${passwordStrength.score}%`,
+                        backgroundColor: passwordStrength.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">
-                Confirm password
+            {/* Confirm Password Field */}
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+                Confirm Password
               </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                placeholder="Confirm password"
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3.5 pr-10 text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                  placeholder="Confirm your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-red-600">Passwords do not match</p>
+              )}
             </div>
 
             <button
