@@ -28,30 +28,29 @@ export default function TestResendPage() {
       setLoading(true);
       setResult(null);
 
-      const response = await fetch('https://api.resend.com/emails', {
+      // Call our API route (no CORS issues!)
+      const response = await fetch('/api/test-resend', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: fromEmail,
-          to: [toEmail],
-          subject: 'Test Email from ACT 2.0',
-          html: '<p>If you received this email, your Resend integration is working! 🎉</p>',
+          apiKey,
+          fromEmail,
+          toEmail,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || `API Error: ${response.status}`);
+        throw new Error(data.error || `API Error: ${response.status}`);
       }
 
       setResult({
         success: true,
-        message: `✅ Email sent successfully! Email ID: ${data.id}`,
-        details: data,
+        message: data.message || '✅ Email sent successfully!',
+        details: data.data,
       });
     } catch (err) {
       setResult({
