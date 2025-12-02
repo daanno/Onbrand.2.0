@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Github } from 'lucide-react';
 import Link from 'next/link';
+import { detectBrandId, getBrandCallbackUrl } from '@/lib/brand';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,12 +31,14 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       
+      const brandId = detectBrandId();
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getBrandCallbackUrl(),
           queryParams: {
-            brand_id: 'act', // Auto-assign to ACT brand
+            brand_id: brandId, // Auto-assign to detected brand
           },
         },
       });
@@ -77,13 +80,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left Panel - Hero Image */}
-      <div className="relative hidden w-1/2 lg:block bg-black">
+      <div className="relative hidden w-1/2 lg:block bg-wihte">
         <div className="absolute inset-0">
           <Image
             src="https://cdn.leonardo.ai/users/0bf3594c-4370-4dd3-bfe3-6ab88b8bee22/generations/1f0c7ae4-c1fb-6a30-b626-018449ba7e14/gemini-image-2_Transform_a_simple_flat_vector_logo_into_a_soft_3D_fluffy_object._Use_the_exact_-0.jpg"
             alt="ACT 2.0 - AI-Powered Platform"
             fill
-            className="object-cover opacity-90"
+            className="object-contain opacity-90"
             priority
           />
         </div>
