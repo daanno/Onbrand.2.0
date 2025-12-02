@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 export default function TestResendPage() {
   const [apiKey, setApiKey] = useState('');
-  const [fromEmail, setFromEmail] = useState('noreply@act.agency');
+  const [fromEmail, setFromEmail] = useState('noreply@onbrand.act.agency');
   const [toEmail, setToEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string; details?: any } | null>(null);
