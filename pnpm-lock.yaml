@@ -51,7 +51,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.25)(jsdom@23.2.0)
 
-  brands/acme-frontend:
+  brands/act-frontend:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.75

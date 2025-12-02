@@ -8,4 +8,6 @@ export * from "./permissions";
 export * from "./storage-utils";
 export * from "./quota-utils";
 export * from "./admin-utils";
+export * from "./conversation-types";
+export * from "./conversation-utils";
 
