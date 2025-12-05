@@ -36,36 +36,50 @@ export default function DashboardPage() {
 
   async function loadUserData() {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get current session (more reliable than getUser for OAuth)
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!user) {
+      if (!session?.user) {
         window.location.href = '/login';
         return;
       }
 
+      const user = session.user;
       setUser(user);
 
-      // Get brand user info
-      const { data: brandUserData } = await supabase
+      // Get brand user info with error handling
+      const { data: brandUserData, error: brandUserError } = await supabase
         .from('brand_users')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to handle 0 or 1 results
+
+      if (brandUserError) {
+        console.error('Error fetching brand user:', brandUserError);
+        // If brand_users query fails, user might not be assigned yet
+        // Show a message or retry
+        return;
+      }
 
       if (brandUserData) {
         setBrandUser(brandUserData);
 
         // Get quota info
-        const { data: quotaData } = await supabase
+        const { data: quotaData, error: quotaError } = await supabase
           .from('brand_quotas')
           .select('*')
           .eq('brand_id', brandUserData.brand_id)
-          .single();
+          .maybeSingle();
+
+        if (quotaError) {
+          console.error('Error fetching quota:', quotaError);
+        }
 
         if (quotaData) {
           setQuota(quotaData);
         }
+      } else {
+        console.warn('No brand assignment found for user. Trigger might not have run.');
       }
     } catch (error) {
       console.error('Error loading user data:', error);
