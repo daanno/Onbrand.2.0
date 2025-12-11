@@ -1,0 +1,147 @@
+# Netlify Configuration for ACT OnBrand 2.0
+# This file configures how Netlify builds and deploys the Next.js application
+# in a turborepo monorepo structure with pnpm workspaces
+
+# =============================================================================
+# BUILD CONFIGURATION
+# =============================================================================
+
+[build]
+  # Base directory: Where Netlify starts the build process
+  # We point to the Next.js app directory, but the build command will cd back to root
+  base = "brands/act-frontend"
+  
+  # Build command: How to build the application
+  # Step 1: cd ../.. to get back to monorepo root (Netlify starts in brands/act-frontend)
+  # Step 2: pnpm install --frozen-lockfile installs all workspace dependencies
+  # Step 3: pnpm turbo run build --filter=act-frontend builds only the frontend app and its deps
+  command = "cd ../.. && pnpm install --frozen-lockfile && pnpm turbo run build --filter=act-frontend"
+  
+  # Publish directory: Where the built files are located (relative to base)
+  # Next.js 15 builds to .next directory by default
+  publish = ".next"
+
+# =============================================================================
+# BUILD ENVIRONMENT
+# =============================================================================
+
+[build.environment]
+  # Node.js version - must be 18+ for Next.js 15
+  NODE_VERSION = "18"
+  
+  # pnpm configuration
+  # --shamefully-hoist helps with some dependency resolution in monorepos
+  PNPM_FLAGS = "--shamefully-hoist"
+
+# =============================================================================
+# NEXT.JS PLUGIN
+# =============================================================================
+
+# Essential for Next.js 15 features:
+# - Server-Side Rendering (SSR)
+# - Server Components
+# - API Routes
+# - Middleware
+# - Image Optimization
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# =============================================================================
+# ENVIRONMENT CONTEXTS
+# =============================================================================
+
+# Production environment (main branch deployments)
+[context.production]
+  [context.production.environment]
+    NODE_ENV = "production"
+
+# Deploy previews (pull request deployments)
+# These are temporary preview URLs for testing changes before merging
+[context.deploy-preview]
+  [context.deploy-preview.environment]
+    NODE_ENV = "development"
+
+# Branch deployments (non-main branch deployments)
+# Useful for staging or feature branches
+[context.branch-deploy]
+  [context.branch-deploy.environment]
+    NODE_ENV = "staging"
+
+# =============================================================================
+# SERVERLESS FUNCTIONS
+# =============================================================================
+
+[functions]
+  # Use esbuild for faster function bundling
+  # Required for Next.js API routes and server components
+  node_bundler = "esbuild"
+
+# =============================================================================
+# SECURITY HEADERS
+# =============================================================================
+
+# These headers enhance security by preventing common attacks
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevent clickjacking attacks
+    X-Frame-Options = "DENY"
+    
+    # Prevent MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+    
+    # Control referrer information
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Enable XSS protection
+    X-XSS-Protection = "1; mode=block"
+
+# =============================================================================
+# REDIRECTS (Optional - Add custom redirects here)
+# =============================================================================
+
+# Example: Redirect old URLs to new ones
+# [[redirects]]
+#   from = "/old-path"
+#   to = "/new-path"
+#   status = 301
+
+# =============================================================================
+# NOTES FOR DEVELOPERS
+# =============================================================================
+
+# Why these settings?
+# 
+# 1. Base directory: Points to the Next.js app but build runs from root
+#    - This is necessary for turborepo to resolve workspace dependencies
+#    - Without this, @act/auth and other packages won't be found
+#
+# 2. Build command: Uses turborepo filtering
+#    - --filter=act-frontend ensures only the frontend app is built
+#    - Turborepo automatically builds dependencies first (@act/auth, etc.)
+#
+# 3. @netlify/plugin-nextjs: Critical for Next.js 15
+#    - Handles Server Components rendering
+#    - Configures Edge Functions for middleware
+#    - Sets up Lambda functions for API routes
+#    - Enables on-demand image optimization
+#
+# 4. Environment contexts: Different configs per deployment type
+#    - Production: Full optimizations, production DB
+#    - Preview: Test environment for PRs
+#    - Branch: Staging environment for feature branches
+#
+# 5. Security headers: Production best practices
+#    - Prevents common web vulnerabilities
+#    - Required for SOC 2 compliance
+#
+# Troubleshooting:
+# - Build fails with "Cannot find module '@act/auth'"
+#   → Check that pnpm install runs from root
+# - Pages don't load (404 errors)
+#   → Verify publish directory is ".next" not "brands/act-frontend/.next"
+# - API routes don't work
+#   → Ensure @netlify/plugin-nextjs is installed
+# - Environment variables not loading
+#   → Check Netlify dashboard → Site settings → Environment variables
+
