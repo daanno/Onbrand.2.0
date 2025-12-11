@@ -1,8 +1,8 @@
 [build]
-  base = "brands/act-frontend"
-  command = "cd ../.. && pnpm install --frozen-lockfile && pnpm turbo run build --filter=act-frontend"
-  publish = ".next"
-  functions = "netlify/functions"
+  base = "."
+  command = "pnpm install --frozen-lockfile && pnpm turbo run build --filter=act-frontend"
+  publish = "brands/act-frontend/.next"
+  functions = "brands/act-frontend/netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18.20.8"
