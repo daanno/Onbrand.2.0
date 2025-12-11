@@ -13,9 +13,10 @@
   
   # Build command: How to build the application
   # Step 1: cd ../.. to get back to monorepo root (Netlify starts in brands/act-frontend)
-  # Step 2: pnpm install --frozen-lockfile --include=dev installs all dependencies including devDeps (turbo)
-  # Step 3: pnpm turbo run build --filter=act-frontend builds only the frontend app and its deps
-  command = "cd ../.. && pnpm install --frozen-lockfile --include=dev && pnpm turbo run build --filter=act-frontend"
+  # Step 2: corepack prepare pnpm@8.15.0 --activate pins pnpm to match local version
+  # Step 3: pnpm install --frozen-lockfile --include=dev installs all dependencies including devDeps (turbo)
+  # Step 4: pnpm turbo run build --filter=act-frontend builds only the frontend app and its deps
+  command = "cd ../.. && corepack prepare pnpm@8.15.0 --activate && pnpm install --frozen-lockfile --include=dev && pnpm turbo run build --filter=act-frontend"
   
   # Publish directory: Where the built files are located (relative to base)
   # Next.js 15 builds to .next directory by default
