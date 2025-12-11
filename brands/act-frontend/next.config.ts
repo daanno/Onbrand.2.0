@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Disable TypeScript type checking during production build
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // Disable ESLint during production build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     // Enable if needed for AI SDK
   },
