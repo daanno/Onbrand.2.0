@@ -2,10 +2,10 @@
   base = "brands/act-frontend"
   command = "cd ../.. && pnpm install --frozen-lockfile && pnpm turbo run build --filter=act-frontend"
   publish = ".next"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18.20.8"
-  PNPM_FLAGS = "--shamefully-hoist"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
