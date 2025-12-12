@@ -1,18 +1,28 @@
-'use client'
-
-import Link from 'next/link'
-
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h1 className="text-4xl font-bold mb-4">404 - Page Not Found</h1>
-      <p className="text-lg mb-6">The page you are looking for does not exist.</p>
-      <Link 
-        href="/"
-        className="px-4 py-2 bg-[#485c11] text-white rounded hover:opacity-90"
-      >
-        Return to Home
-      </Link>
-    </div>
+    <html>
+      <head>
+        <title>404 - Page Not Found</title>
+      </head>
+      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, padding: 20 }}>
+        <div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+          <h1>404 - Page Not Found</h1>
+          <p>The page you are looking for does not exist.</p>
+          <a 
+            href="/"
+            style={{
+              display: 'inline-block',
+              padding: '8px 16px',
+              backgroundColor: '#485c11',
+              color: 'white',
+              textDecoration: 'none',
+              borderRadius: '4px'
+            }}
+          >
+            Return to Home
+          </a>
+        </div>
+      </body>
+    </html>
   )
 }
