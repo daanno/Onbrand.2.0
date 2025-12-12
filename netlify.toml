@@ -6,9 +6,8 @@
 
 [build.environment]
   NODE_VERSION = "20.12.1"
+  NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
-  NEXT_DISABLE_ETW = "1"
-  NEXT_SKIP_API_DIRECTORY = "true"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

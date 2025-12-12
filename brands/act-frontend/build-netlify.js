@@ -2,8 +2,6 @@
 
 // Simple build script for Netlify
 const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 
 console.log('Running Netlify build script...');
 
@@ -13,16 +11,6 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANO
 process.env.NEXT_PUBLIC_MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'onbrandai.app';
 process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://onbrandai.app';
 
-// Clear any cached .next directory
-const nextDir = path.join(__dirname, '.next');
-if (fs.existsSync(nextDir)) {
-  console.log('Clearing .next cache...');
-  fs.rmSync(nextDir, { recursive: true, force: true });
-}
-
-// Log current directory contents for debugging
-console.log('App directory contents:', fs.readdirSync(path.join(__dirname, 'app')).join(', '));
-
 try {
   console.log('Running next build...');
   
@@ -30,8 +18,8 @@ try {
     stdio: 'inherit',
     env: {
       ...process.env,
-      NEXT_TELEMETRY_DISABLED: '1',
-      NODE_OPTIONS: '--no-warnings'
+      NODE_ENV: 'production',
+      NEXT_TELEMETRY_DISABLED: '1'
     }
   });
   
