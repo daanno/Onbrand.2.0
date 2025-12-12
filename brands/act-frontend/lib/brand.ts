@@ -63,39 +63,50 @@ const BRAND_CONFIGS: Record<string, BrandConfig> = {
  * - yourdomain.com → 'act' (default)
  */
 export function detectBrandId(): string {
+  // Server-side: read from middleware header
+  if (typeof window === 'undefined') {
+    try {
+      const { headers } = require('next/headers');
+      const headersList = headers();
+      const subdomain = headersList.get('x-brand-subdomain');
+      
+      if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
+        // Check if subdomain matches a known brand
+        if (BRAND_CONFIGS[subdomain]) {
+          return subdomain;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading headers:', e);
+    }
+  }
+  
   // Check for environment override (useful for development)
   if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_BRAND_ID) {
     return process.env.NEXT_PUBLIC_BRAND_ID;
   }
 
-  // Extract from hostname in browser
+  // Client-side: read from window.location
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-
-    // localhost or IP address - use default
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-      return process.env.NEXT_PUBLIC_BRAND_ID || 'act';
+    const subdomain = hostname.split('.')[0];
+    
+    // Handle special cases
+    if (hostname.includes('localhost')) {
+      return process.env.NEXT_PUBLIC_DEFAULT_BRAND || 'act';
     }
-
-    // Extract subdomain
-    // Examples:
-    // - act.yourdomain.com → ['act', 'yourdomain', 'com']
-    // - acme.staging.yourdomain.com → ['acme', 'staging', 'yourdomain', 'com']
-    const parts = hostname.split('.');
-
-    // If we have a subdomain (more than 2 parts for .com, more than 3 for .co.uk)
-    if (parts.length >= 2) {
-      const subdomain = parts[0];
-      
-      // Check if subdomain matches a known brand
-      if (BRAND_CONFIGS[subdomain]) {
-        return subdomain;
-      }
+    if (subdomain === 'onbrand' || subdomain === 'www') {
+      return process.env.NEXT_PUBLIC_DEFAULT_BRAND || 'act';
+    }
+    
+    // Check if subdomain matches a known brand
+    if (BRAND_CONFIGS[subdomain]) {
+      return subdomain;
     }
   }
-
-  // Default to 'act'
-  return 'act';
+  
+  // Fallback
+  return process.env.NEXT_PUBLIC_DEFAULT_BRAND || 'act';
 }
 
 /**
