@@ -16,6 +16,11 @@ process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'placeholder-key';
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'placeholder-key';
 process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 'placeholder-key';
 
+// Set domain environment variables for wildcard domain support
+process.env.NEXT_PUBLIC_MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'onbrandai.app';
+process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://onbrandai.app';
+process.env.NEXT_PUBLIC_ENABLE_SUBDOMAINS = 'true';
+
 // Create a Next.js config that skips API routes
 const nextConfigPath = path.join(__dirname, 'next.config.skip-api.js');
 
@@ -31,11 +36,25 @@ module.exports = {
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   modularizeImports: {}, // Simplified
-  experimental: {}, // Simplified
+  // Support for wildcard domains
+  experimental: { 
+    middleware: true 
+  },
   // Skip API routes and specify correct page extensions for Next.js 16
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+  // Handle domain config
+  images: {
+    domains: ['onbrandai.app', '*.onbrandai.app'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.onbrandai.app',
+      },
+      ...originalConfig.images?.remotePatterns || []
+    ],
+  },
 };
 `, 
   'utf-8'

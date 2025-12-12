@@ -10,6 +10,18 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Handle dynamic subdomains correctly
+[context.production]
+  environment = { NEXT_PUBLIC_SITE_URL = "https://onbrandai.app" }
+
+# Redirect to the Next.js app for all subdomains
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+  conditions = { Subdomain = "*" }
+
 [[headers]]
   for = "/*"
   [headers.values]
