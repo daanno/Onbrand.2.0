@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
-import { getBrandConfig } from '../../../lib/brand';
+import { getBrandConfig, isValidBrand } from '../../../lib/brand';
 
 interface BrandLayoutProps {
   children: ReactNode;
@@ -78,15 +78,18 @@ function BrandFooter({ brandConfig }: { brandConfig: any }) {
   );
 }
 
-export default function BrandLayout({ children, params }: BrandLayoutProps) {
-  // Get the brand configuration
+export default async function BrandLayout({ children, params }: BrandLayoutProps) {
+  // Get the brand configuration from the URL parameter
   const { brandName } = params;
-  const brandConfig = getBrandConfig();
   
-  // Validate that the URL path matches the detected brand
-  // This helps with security - users can only access their own brand pages
-  const isValidBrandPage = brandName === brandConfig.id;
-  const pageTitle = isValidBrandPage ? `${brandConfig.displayName} | OnBrand` : 'Invalid Brand';
+  // Check if this is a valid brand
+  const validBrand = isValidBrand(brandName);
+  
+  // Get the specific brand config for this page
+  const brandConfig = getBrandConfig(brandName);
+  
+  // Set page title
+  const pageTitle = validBrand ? `${brandConfig.displayName} | OnBrand` : 'Invalid Brand';
   
   return (
     <div className="flex flex-col min-h-screen">
