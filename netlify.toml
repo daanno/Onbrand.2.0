@@ -6,8 +6,6 @@
 
 [build.environment]
   NODE_VERSION = "20.12.1"
-  NODE_ENV = "production"
-  NEXT_TELEMETRY_DISABLED = "1"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -15,16 +13,6 @@
 # Handle dynamic subdomains correctly
 [context.production]
   environment = { NEXT_PUBLIC_SITE_URL = "https://onbrandai.app" }
-
-# Branch deploy settings
-[context.branch-deploy]
-  command = "pnpm install --frozen-lockfile && cd brands/act-frontend && node ./build-netlify.js"
-  environment = { NEXT_PUBLIC_SITE_URL = "https://{{branch}}--onbrandai.netlify.app" }
-
-# Deploy preview settings (for pull requests)
-[context.deploy-preview]
-  command = "pnpm install --frozen-lockfile && cd brands/act-frontend && node ./build-netlify.js"
-  environment = { NEXT_PUBLIC_SITE_URL = "https://deploy-preview-{{pr}}--onbrandai.netlify.app" }
 
 # Redirect to the Next.js app for all subdomains
 [[redirects]]
