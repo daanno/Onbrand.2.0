@@ -132,10 +132,11 @@ export function detectBrandId(): string {
 }
 
 /**
- * Gets the full brand configuration for the current brand
+ * Gets the full brand configuration for the current brand or a specific brand
+ * @param specificBrandId Optional brand ID to retrieve. If not provided, detects from context.
  */
-export function getBrandConfig(): BrandConfig {
-  const brandId = detectBrandId();
+export function getBrandConfig(specificBrandId?: string): BrandConfig {
+  const brandId = specificBrandId || detectBrandId();
   return BRAND_CONFIGS[brandId] || BRAND_CONFIGS.act;
 }
 

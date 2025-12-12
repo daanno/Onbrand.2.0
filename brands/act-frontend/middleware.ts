@@ -70,9 +70,12 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Pass brand subdomain to the app via header
+  // Get the brand from URL path if it exists (already checked above)
+  let brandFromUrl = brandPathMatch ? brandPathMatch[1] : null;
+  
+  // Pass brand subdomain to the app via header, prioritizing URL path brand if available
   const response = NextResponse.next();
-  response.headers.set('x-brand-subdomain', subdomain);
+  response.headers.set('x-brand-subdomain', brandFromUrl || subdomain);
   response.headers.set('x-hostname', hostname);
   
   // Optional: Log brand detection for debugging

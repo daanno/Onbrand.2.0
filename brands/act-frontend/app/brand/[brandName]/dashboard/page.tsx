@@ -8,10 +8,12 @@ import { getBrandData } from '../../../../lib/data/brand-data';
  */
 export default async function BrandDashboard({ params }: { params: { brandName: string } }) {
   const { brandName } = params;
-  const brandConfig = getBrandConfig();
+  
+  // Get the specific brand config for this page
+  const brandConfig = getBrandConfig(brandName);
   
   // Fetch tenant-specific data using our data layer
-  const brandData = await getBrandData();
+  const brandData = await getBrandData(brandName);
   
   // Construct metrics from brand data
   const metrics = [

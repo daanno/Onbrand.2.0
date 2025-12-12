@@ -1,4 +1,4 @@
-import { getBrandConfig } from '../../../lib/brand';
+import { getBrandConfig, isValidBrand } from '../../../lib/brand';
 import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
@@ -96,13 +96,14 @@ async function checkUserAccess(brandId: string): Promise<boolean> {
 // Server component to fetch brand data and render page
 export default async function BrandPage({ params }: { params: { brandName: string } }) {
   const { brandName } = params;
-  const brandConfig = getBrandConfig();
-
-  // If the brandName in the URL doesn't match the detected brand, show 404
-  // This prevents users from accessing other brand pages
-  if (brandName !== brandConfig.id) {
+  
+  // Check if the requested brand exists in our configurations
+  if (!isValidBrand(brandName)) {
     notFound();
   }
+  
+  // Get the specific brand config for this page
+  const brandConfig = getBrandConfig(brandName);
   
   // Check if user has access to the requested brand
   const hasAccess = await checkUserAccess(brandName);

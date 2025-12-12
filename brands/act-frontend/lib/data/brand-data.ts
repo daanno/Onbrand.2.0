@@ -76,26 +76,20 @@ const brandDataStore: Record<string, any> = {
 };
 
 /**
- * Get brand data for the current tenant
+ * Get brand data for the current tenant or a specific brand
  * This demonstrates how to get tenant-specific data in a multi-tenant app
+ * @param specificBrandId Optional brand ID to retrieve. If not provided, detects from context.
  */
-export async function getBrandData() {
-  // Get the current brand ID from the brand detection system
-  const brandConfig = getBrandConfig();
+export async function getBrandData(specificBrandId?: string) {
+  // Get the brand ID - either specified or from the detection system
+  const brandConfig = getBrandConfig(specificBrandId);
   const brandId = brandConfig.id;
   
-  // In a real app, you would:
-  // 1. Validate the user has access to this brand (tenant)
-  // 2. Query your database with tenant isolation
-  // 3. Return only data for this specific tenant
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // Return data for this brand or default data
-  return brandDataStore[brandId] || {
+  // Simulate fetching tenant-specific data from an API or database
+  // In a real app, this would use headers from middleware or other tenant context
+  const data = brandDataStore[brandId] || {
     name: brandConfig.displayName,
-    description: 'Brand data not found',
+    description: `Brand portal for ${brandConfig.displayName}`,
     metrics: {
       contentCount: 0,
       contentViews: 0,
@@ -104,6 +98,11 @@ export async function getBrandData() {
     },
     recentContent: []
   };
+  
+  // Simulate a delay to show loading state
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  return data;
 }
 
 /**
