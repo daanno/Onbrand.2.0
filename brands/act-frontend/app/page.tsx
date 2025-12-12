@@ -13,8 +13,8 @@ export default function Home() {
   const isLoggedIn = false; // For demo, force login flow
   
   if (isLoggedIn) {
-    // If logged in, go to the dashboard
-    redirect(`/brand/${brandConfig.id}/dashboard`);
+    // If logged in, go to the simplified dashboard URL
+    redirect('/dashboard');
   } else {
     // If not logged in, go to the login page
     redirect('/login');

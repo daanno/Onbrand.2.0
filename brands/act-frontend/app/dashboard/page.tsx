@@ -46,6 +46,22 @@ export default function DashboardPage() {
 
       const user = session.user;
       setUser(user);
+      
+      // Get brand from email if available
+      let brandId = 'act'; // Default
+      
+      if (user.email) {
+        const emailParts = user.email.split('@');
+        if (emailParts.length > 1) {
+          const domain = emailParts[1];
+          const domainParts = domain.split('.');
+          if (domainParts.length > 0) {
+            // Extract organization name from email domain (e.g., user@creativetechnologists.nl -> creativetechnologists)
+            brandId = domainParts[0];
+            console.log('Extracted brand ID from email:', brandId);
+          }
+        }
+      }
 
       // Get brand user info with error handling
       const { data: brandUserData, error: brandUserError } = await supabase
@@ -63,6 +79,7 @@ export default function DashboardPage() {
 
       if (brandUserData) {
         setBrandUser(brandUserData);
+        brandId = brandUserData.brand_id; // Use the brand ID from the database if available
 
         // Get quota info
         const { data: quotaData, error: quotaError } = await supabase
@@ -79,7 +96,7 @@ export default function DashboardPage() {
           setQuota(quotaData);
         }
       } else {
-        console.warn('No brand assignment found for user. Trigger might not have run.');
+        console.warn('No brand assignment found for user. Using brand ID from email domain:', brandId);
       }
     } catch (error) {
       console.error('Error loading user data:', error);

@@ -103,9 +103,9 @@ export default function LoginPage() {
         }
       }
       
-      // Redirect directly to dashboard
-      console.log(`Redirecting to dashboard: /brand/${targetBrand}/dashboard`);
-      window.location.href = `/brand/${targetBrand}/dashboard`;
+      // Redirect directly to the simplified dashboard URL
+      console.log(`Redirecting to simplified dashboard URL: /dashboard`);
+      window.location.href = `/dashboard`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
       setLoading(false);
