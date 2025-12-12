@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Crimson_Text, DM_Sans, Roboto_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { getBrandConfig } from "../lib/brand";
@@ -30,7 +30,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: brandConfig.displayName,
     description: `${brandConfig.displayName} - Powered by OnBrand.ai`,
-    // You could add more metadata like icons, theme colors, etc. based on brand
+  };
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  const brandConfig = getBrandConfig();
+  
+  return {
     themeColor: brandConfig.colors.primary,
   };
 }

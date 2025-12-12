@@ -10,16 +10,16 @@ export default function Home() {
     <div className="bg-white flex flex-col items-center pb-[20px] pt-0 px-[40px] relative w-full">
       <div className="absolute backdrop-blur-[15px] backdrop-filter bg-[rgba(255,255,255,0.4)] flex font-bold gap-[27px] items-center px-[24px] py-[20px] rounded-[100px] text-[14px] text-black text-center text-nowrap top-[16px] z-10"
            style={{ left: '50%', transform: 'translateX(-50%)' }}>
-        <button aria-label="Jump to product benefits section" className="text-nowrap leading-[1.4]">
+        <button key="benefits" aria-label="Jump to product benefits section" className="text-nowrap leading-[1.4]">
           Benefits
         </button>
-        <button aria-label="Jump to product specifications section" className="text-nowrap leading-[1.4]">
+        <button key="specifications" aria-label="Jump to product specifications section" className="text-nowrap leading-[1.4]">
           Specifications
         </button>
-        <button aria-label="Jump to product how-to section" className="text-nowrap leading-[1.4]">
+        <button key="howto" aria-label="Jump to product how-to section" className="text-nowrap leading-[1.4]">
           How-to
         </button>
-        <button aria-label="Jump to contact us section" className="text-nowrap leading-[1.4]">
+        <button key="contact" aria-label="Jump to contact us section" className="text-nowrap leading-[1.4]">
           Contact Us
         </button>
       </div>
@@ -59,7 +59,7 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap gap-[20px_40px] items-center justify-center w-full">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex flex-col h-[84px] items-start justify-center overflow-clip p-[20px] w-[154px]">
+              <div key={`logo-${i}`} className="flex flex-col h-[84px] items-start justify-center overflow-clip p-[20px] w-[154px]">
                 <div className="basis-0 grow mix-blend-exclusion opacity-60 w-full h-full relative">
                   {/* Placeholder for logo images */}
                   <div className="absolute inset-0 bg-gray-300 opacity-60"></div>
@@ -83,19 +83,22 @@ export default function Home() {
             <div className="flex gap-[20px] items-start w-full">
               {[
                 { 
+                  id: "data",
                   title: "Comprehensive Data",
                   description: "Access all regional metrics in one unified platform" 
                 },
                 { 
+                  id: "interface",
                   title: "Intuitive Interface",
                   description: "Navigate complex data with our user-friendly design" 
                 },
                 { 
+                  id: "insights",
                   title: "Actionable Insights",
                   description: "Turn raw information into strategic advantages" 
                 }
-              ].map((item, i) => (
-                <div key={i} className="basis-0 border border-[#e9e9e9] flex flex-col gap-[16px] grow items-start min-h-px min-w-[240px] p-[30px] rounded-[30px]">
+              ].map((item) => (
+                <div key={item.id} className="basis-0 border border-[#e9e9e9] flex flex-col gap-[16px] grow items-start min-h-px min-w-[240px] p-[30px] rounded-[30px]">
                   <h3 className="font-serif var(--font-crimson) leading-none text-[18px] text-black tracking-[-0.54px] w-full">
                     {item.title}
                   </h3>
@@ -169,22 +172,25 @@ export default function Home() {
             <div className="flex items-start w-full">
               {[
                 {
+                  id: "step1",
                   number: "01",
                   title: "Sign Up and Get Started",
                   description: "With our intuitive setup, you're up and running in minutes."
                 },
                 {
+                  id: "step2",
                   number: "02",
                   title: "Customize and Configure",
                   description: "Adapt Area to your specific requirements and preferences."
                 },
                 {
+                  id: "step3",
                   number: "03",
                   title: "Grow Your Business",
                   description: "Make informed decisions to exceed your goals."
                 }
-              ].map((step, i) => (
-                <section key={i} aria-label={`Step ${i+1} of 3`} className="basis-0 border-t border-[#e9e9e9] flex flex-col gap-[60px] grow items-start min-h-px min-w-[240px] pb-[20px] pl-0 pr-[30px] pt-[60px]">
+              ].map((step) => (
+                <section key={step.id} aria-label={`Step ${step.number} of 3`} className="basis-0 border-t border-[#e9e9e9] flex flex-col gap-[60px] grow items-start min-h-px min-w-[240px] pb-[20px] pl-0 pr-[30px] pt-[60px]">
                   <p className="font-normal leading-none text-[#929292] text-[80px] tracking-[-3.2px] w-full">
                     {step.number}
                   </p>
@@ -224,9 +230,9 @@ export default function Home() {
       <footer className="border-t border-[#e9e9e9] flex flex-col gap-[80px] items-start justify-end max-w-[1500px] pb-[20px] pt-[40px] px-0 w-full">
         <div className="flex h-[40px] items-center justify-between w-full">
           <div className="flex font-bold gap-[27px] items-center leading-[1.4] text-[14px] text-black text-center text-nowrap tracking-[-0.35px]">
-            <button className="text-nowrap">Benefits</button>
-            <button className="text-nowrap">Specifications</button>
-            <button className="text-nowrap">How-to</button>
+            <button key="footer-benefits" className="text-nowrap">Benefits</button>
+            <button key="footer-specifications" className="text-nowrap">Specifications</button>
+            <button key="footer-howto" className="text-nowrap">How-to</button>
           </div>
         </div>
         <div className="flex gap-[40px] items-end w-full">
