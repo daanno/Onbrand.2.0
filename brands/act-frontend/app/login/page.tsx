@@ -80,16 +80,31 @@ export default function LoginPage() {
       const emailDomain = email.split('@')[1];
       const brandSlug = emailDomain?.split('.')[0] || 'act';
       
-      // Check if brand exists
-      const { data: brandData } = await supabase
-        .from('brands')
-        .select('id')
-        .eq('id', brandSlug)
-        .single();
+      console.log('Login attempt:', { email, emailDomain, brandSlug });
       
-      const targetBrand = brandData ? brandSlug : 'act';
+      // First, check if the brand is configured in our app
+      const brands = ['act', 'acme', 'nike', 'creativetechnologists'];
+      const isConfiguredBrand = brands.includes(brandSlug);
+      
+      let targetBrand = 'act'; // Default fallback
+      
+      if (isConfiguredBrand) {
+        targetBrand = brandSlug;
+      } else {
+        // If brand is not configured, check database
+        const { data: brandData } = await supabase
+          .from('brands')
+          .select('id')
+          .eq('id', brandSlug)
+          .single();
+        
+        if (brandData) {
+          targetBrand = brandData.id;
+        }
+      }
       
       // Redirect to brand page or dashboard
+      console.log(`Redirecting to: /brand/${targetBrand}`);
       window.location.href = `/brand/${targetBrand}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');

@@ -57,6 +57,18 @@ const BRAND_CONFIGS: Record<string, BrandConfig> = {
     },
     logo: '/brands/nike/logo.svg',
   },
+  creativetechnologists: {
+    id: 'creativetechnologists',
+    name: 'creativetechnologists',
+    displayName: 'Creative Technologists',
+    domain: 'creativetechnologists',
+    colors: {
+      primary: '#6200EA',
+      secondary: '#FFFFFF',
+      accent: '#00E5FF',
+    },
+    logo: '/brands/creativetechnologists/logo.svg',
+  },
   // Add more brands here as needed
 };
 

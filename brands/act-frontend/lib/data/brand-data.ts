@@ -55,6 +55,23 @@ const brandDataStore: Record<string, any> = {
       { id: '4', title: 'Brand Guidelines Update', date: '2025-09-28', status: 'Published' },
       { id: '5', title: 'Social Media Assets', date: '2025-09-22', status: 'Published' }
     ]
+  },
+  'creativetechnologists': {
+    name: 'Creative Technologists',
+    description: 'Creative technology solutions and brand innovation',
+    metrics: {
+      contentCount: 52,
+      contentViews: 3150,
+      brandScore: '94%',
+      activeUsers: 18
+    },
+    recentContent: [
+      { id: '1', title: 'Innovation Workshop Results', date: '2025-10-18', status: 'Published' },
+      { id: '2', title: 'Brand Identity Evolution', date: '2025-10-12', status: 'Review' },
+      { id: '3', title: 'Tech Trends 2026', date: '2025-10-05', status: 'Draft' },
+      { id: '4', title: 'Client Pitch Deck', date: '2025-09-30', status: 'Published' },
+      { id: '5', title: 'Design System Update', date: '2025-09-25', status: 'Published' }
+    ]
   }
 };
 
