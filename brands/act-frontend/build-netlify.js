@@ -64,17 +64,14 @@ try {
   // Run the Next.js build with our special config
   console.log('Running Next.js build with API routes skipped...');
 
-  // Use the local pnpm next build to ensure we use the correct version
-  execSync('cd ../../ && pnpm --filter=act-frontend exec next build', { 
+  // Run next build directly from current directory
+  execSync('npx next build', { 
     stdio: 'inherit',
+    cwd: __dirname,
     env: {
       ...process.env,
       NEXT_TELEMETRY_DISABLED: '1',
-      NODE_OPTIONS: '--no-warnings',
-      NEXT_SKIP_API_DIRECTORY: 'true',
-      NEXT_IGNORE_TYPE_ERROR: 'true',
-      NEXT_IGNORE_ESLINT_ERROR: 'true',
-      NEXT_CONFIG_FILE: nextConfigPath
+      NODE_OPTIONS: '--no-warnings'
     }
   });
   
