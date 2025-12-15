@@ -1,5 +1,6 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { getBrandConfig } from "../lib/brand";
 import "./globals.css";
 
@@ -13,19 +14,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export function generateViewport(): Viewport {
-  const brandConfig = getBrandConfig();
-  return {
-    themeColor: brandConfig.colors.primary,
-  };
-}
-
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
+  // We'll skip the headers approach due to async issues
+  // Our brand detection will fall back to other methods
   const brandConfig = getBrandConfig();
   
   return {
     title: brandConfig.displayName,
     description: `${brandConfig.displayName} - Powered by OnBrand.ai`,
+    // You could add more metadata like icons, theme colors, etc. based on brand
+    themeColor: brandConfig.colors.primary,
   };
 }
 
