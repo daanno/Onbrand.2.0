@@ -1,6 +1,7 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   // Enable domain handling for multi-tenant subdomains
   async headers() {
     return [
@@ -52,14 +53,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Disable ESLint during production build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  experimental: {
-    // Enable middleware for subdomain handling
-    middleware: true,
-  },
+  // Use standalone output for better performance in production
+  output: 'standalone',
 };
 
 export default nextConfig;
