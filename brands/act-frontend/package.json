@@ -16,6 +16,7 @@
   "dependencies": {
     "@act/auth": "workspace:*",
     "@ai-sdk/anthropic": "^2.0.56",
+    "@ai-sdk/google": "^2.0.47",
     "@ai-sdk/openai": "^2.0.87",
     "@ai-sdk/react": "^2.0.116",
     "@radix-ui/react-avatar": "^1.1.11",

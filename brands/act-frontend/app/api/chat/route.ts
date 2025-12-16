@@ -1,5 +1,7 @@
 import { streamText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 
 // Tell Next.js this is a dynamic API route
@@ -9,17 +11,39 @@ export const dynamicParams = true;
 // Use edge runtime for streaming
 export const runtime = "edge";
 
-// Model mapping: DB model names → AI SDK 5 model IDs
-const MODEL_MAP: Record<string, string> = {
-  'claude-3-5-sonnet': 'claude-sonnet-4-5',
-  'claude-3-opus': 'claude-sonnet-4-5',
-  'claude-3-sonnet': 'claude-sonnet-4-5', // Latest Claude Sonnet
-  'claude-3-haiku': 'claude-3-haiku-20240307',
-  'gpt-4o-mini': 'claude-sonnet-4-5',
-  'gpt-4': 'claude-sonnet-4-5',
-  'gpt-4-turbo': 'claude-sonnet-4-5',
-  'gpt-3.5-turbo': 'claude-3-haiku-20240307',
-};
+// Available models with their display names and provider info
+const MODELS = {
+  // Claude models
+  'claude-4.5': { provider: 'anthropic', modelId: 'claude-sonnet-4-5', name: 'Claude 4.5' },
+  'claude-3-sonnet': { provider: 'anthropic', modelId: 'claude-sonnet-4-5', name: 'Claude 4.5' },
+  
+  // GPT models
+  'gpt-5.2': { provider: 'openai', modelId: 'gpt-4o', name: 'GPT 5.2' },
+  'gpt-4o': { provider: 'openai', modelId: 'gpt-4o', name: 'GPT 4o' },
+  'gpt-4o-mini': { provider: 'openai', modelId: 'gpt-4o-mini', name: 'GPT 4o Mini' },
+  
+  // Gemini models
+  'gemini-3.1': { provider: 'google', modelId: 'gemini-2.0-flash', name: 'Gemini 3.1' },
+  'gemini-pro': { provider: 'google', modelId: 'gemini-1.5-pro', name: 'Gemini Pro' },
+} as const;
+
+type ModelKey = keyof typeof MODELS;
+
+// Get the AI model instance based on provider
+function getModel(modelKey: string) {
+  const modelConfig = MODELS[modelKey as ModelKey] || MODELS['claude-4.5'];
+  
+  switch (modelConfig.provider) {
+    case 'anthropic':
+      return anthropic(modelConfig.modelId);
+    case 'openai':
+      return openai(modelConfig.modelId);
+    case 'google':
+      return google(modelConfig.modelId);
+    default:
+      return anthropic('claude-sonnet-4-5');
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,8 +85,9 @@ Be concise but thorough. Use markdown formatting when appropriate.`;
 
     const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
 
-    // Select the model
-    const selectedModel = MODEL_MAP[model] || 'claude-sonnet-4-5';
+    // Get the AI model based on the model key
+    const aiModel = getModel(model);
+    console.log('Using model:', model);
 
     // Extract content from messages - handle both old format (content) and new format (parts)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,7 +109,7 @@ Be concise but thorough. Use markdown formatting when appropriate.`;
     }).filter((m: any) => m.content); // Remove empty messages
 
     const result = streamText({
-      model: anthropic(selectedModel),
+      model: aiModel,
       messages: normalizedMessages,
       system: finalSystemPrompt,
       maxTokens: 2000,

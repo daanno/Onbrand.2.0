@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { createClient } from '@/lib/supabase/client';
 import { ChatContainer } from '@/components/chat/chat-container';
+import { type ModelId } from '@/components/chat/chat-input';
 import { useRouter } from 'next/navigation';
 
 // Types
@@ -47,6 +48,9 @@ export default function ChatPage() {
   
   // Input state (AI SDK 5 requires manual input management)
   const [input, setInput] = useState('');
+  
+  // Model selection state
+  const [selectedModel, setSelectedModel] = useState<ModelId>('claude-4.5');
   
   // Refs for dynamic body values
   const brandIdRef = useRef(brandId);
@@ -305,7 +309,7 @@ export default function ChatPage() {
           brand_id: brandId,
           user_id: userId,
           title,
-          model: 'claude-3-sonnet', // Stored in DB, mapped to latest Claude in API
+          model: selectedModel, // Use the selected model from dropdown
         })
         .select()
         .single();
@@ -340,12 +344,12 @@ export default function ChatPage() {
         body: {
           brandId: brandIdRef.current,
           conversationId: conversation.id,
-          model: conversation.model || 'claude-3-sonnet',
+          model: selectedModel, // Use the selected model from dropdown
           systemPrompt: conversation.system_prompt,
         },
       }
     );
-  }, [input, brandId, userId, currentConversation, sendMessage]);
+  }, [input, brandId, userId, currentConversation, sendMessage, selectedModel]);
 
   // Regenerate last response
   const handleRegenerate = useCallback(async () => {
@@ -390,6 +394,7 @@ export default function ChatPage() {
       isLoading={isLoadingConversations}
       isStreaming={isStreaming}
       input={input}
+      selectedModel={selectedModel}
       setInput={setInput}
       onNewChat={handleNewChat}
       onSelectConversation={handleSelectConversation}
@@ -398,6 +403,7 @@ export default function ChatPage() {
       onSendMessage={handleSendMessage}
       onStopGeneration={stop}
       onRegenerate={handleRegenerate}
+      onModelChange={setSelectedModel}
       brandName={brandName}
     />
   );

@@ -2,9 +2,7 @@
 
 import { ChatSidebar } from './chat-sidebar';
 import { MessageList } from './message-list';
-import { ChatInput } from './chat-input';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
+import { ChatInput, type ModelId } from './chat-input';
 
 interface Message {
   id: string;
@@ -28,6 +26,7 @@ interface ChatContainerProps {
   isStreaming: boolean;
   input: string;
   streamingContent?: string;
+  selectedModel: ModelId;
 
   // Actions
   setInput: (value: string) => void;
@@ -38,6 +37,7 @@ interface ChatContainerProps {
   onSendMessage: () => void;
   onStopGeneration?: () => void;
   onRegenerate?: () => void;
+  onModelChange: (model: ModelId) => void;
 
   // User info
   brandName?: string;
@@ -51,6 +51,7 @@ export function ChatContainer({
   isStreaming,
   input,
   streamingContent,
+  selectedModel,
   setInput,
   onNewChat,
   onSelectConversation,
@@ -59,6 +60,7 @@ export function ChatContainer({
   onSendMessage,
   onStopGeneration,
   onRegenerate,
+  onModelChange,
   brandName,
 }: ChatContainerProps) {
   return (
@@ -79,14 +81,6 @@ export function ChatContainer({
 
       {/* Main Chat Area */}
       <div className="flex flex-1 flex-col min-w-0">
-        {/* Deploy Button - Top Right */}
-        <div className="absolute top-3 right-3 z-10">
-          <Button variant="outline" size="sm" className="gap-2 text-xs">
-            <ExternalLink className="size-3" />
-            Deploy with Vercel
-          </Button>
-        </div>
-
         {/* Messages */}
         <MessageList
           messages={messages}
@@ -105,6 +99,8 @@ export function ChatContainer({
             isStreaming={isStreaming}
             isLoading={isLoading}
             placeholder="Send a message..."
+            model={selectedModel}
+            onModelChange={onModelChange}
           />
         </div>
       </div>

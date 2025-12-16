@@ -1,9 +1,24 @@
 'use client';
 
-import { useRef, useCallback, useEffect, KeyboardEvent } from 'react';
+import { useRef, useCallback, useEffect, KeyboardEvent, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, Square, Paperclip, Sparkles, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ArrowUp, Square, Paperclip, Sparkles, ChevronDown, Check } from 'lucide-react';
+
+// Available AI models
+export const AI_MODELS = [
+  { id: 'claude-4.5', name: 'Claude 4.5', provider: 'Anthropic', icon: '🟣' },
+  { id: 'gpt-5.2', name: 'GPT 5.2', provider: 'OpenAI', icon: '🟢' },
+  { id: 'gemini-3.1', name: 'Gemini 3.1', provider: 'Google', icon: '🔵' },
+] as const;
+
+export type ModelId = typeof AI_MODELS[number]['id'];
 
 interface ChatInputProps {
   input: string;
@@ -14,7 +29,8 @@ interface ChatInputProps {
   isLoading?: boolean;
   placeholder?: string;
   disabled?: boolean;
-  model?: string;
+  model?: ModelId;
+  onModelChange?: (model: ModelId) => void;
 }
 
 export function ChatInput({
@@ -26,8 +42,11 @@ export function ChatInput({
   isLoading = false,
   placeholder = 'Send a message...',
   disabled = false,
-  model = 'GPT-4o Mini',
+  model = 'claude-4.5',
+  onModelChange,
 }: ChatInputProps) {
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const selectedModel = AI_MODELS.find(m => m.id === model) || AI_MODELS[0];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = useCallback(() => {
@@ -104,15 +123,41 @@ export function ChatInput({
               <span className="sr-only">Attach file</span>
             </Button>
             
-            {/* Model Selector */}
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Sparkles className="size-3.5" />
-              <span>{model}</span>
-              <ChevronDown className="size-3" />
-            </button>
+            {/* Model Selector Dropdown */}
+            <DropdownMenu open={isModelMenuOpen} onOpenChange={setIsModelMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  disabled={disabled || !isReady}
+                >
+                  <span>{selectedModel.icon}</span>
+                  <span>{selectedModel.name}</span>
+                  <ChevronDown className="size-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {AI_MODELS.map((m) => (
+                  <DropdownMenuItem
+                    key={m.id}
+                    onClick={() => {
+                      onModelChange?.(m.id);
+                      setIsModelMenuOpen(false);
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{m.icon}</span>
+                      <div>
+                        <div className="font-medium">{m.name}</div>
+                        <div className="text-xs text-muted-foreground">{m.provider}</div>
+                      </div>
+                    </div>
+                    {model === m.id && <Check className="size-4" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Right side - Send/Stop Button */}
