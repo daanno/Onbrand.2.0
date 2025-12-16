@@ -14,6 +14,14 @@
 [context.production]
   environment = { NEXT_PUBLIC_SITE_URL = "https://onbrandai.app" }
 
+# Deploy Preview - uses Netlify's deploy URL automatically
+[context.deploy-preview]
+  environment = { NEXT_PUBLIC_SITE_URL = "" }
+
+# Branch deploys
+[context.branch-deploy]
+  environment = { NEXT_PUBLIC_SITE_URL = "" }
+
 # Redirect to the Next.js app for all subdomains
 [[redirects]]
   from = "/*"

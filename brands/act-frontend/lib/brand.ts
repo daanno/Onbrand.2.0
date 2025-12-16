@@ -155,13 +155,39 @@ export function isValidBrand(brandId: string): boolean {
 }
 
 /**
+ * Gets the site URL, preferring environment variables for SSR contexts
+ * Works with Netlify deploy previews automatically
+ */
+export function getSiteUrl(): string {
+  // Client-side: use window.location.origin (works for all deployments)
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  
+  // Server-side: check environment variables
+  // Netlify provides these automatically:
+  // - DEPLOY_URL: The unique URL for this specific deploy (works for previews)
+  // - URL: The main site URL
+  // - DEPLOY_PRIME_URL: The deploy URL or branch URL
+  const deployUrl = process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL || process.env.URL;
+  if (deployUrl) {
+    return deployUrl;
+  }
+  
+  // Fallback to configured site URL
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  
+  // Final fallback for local development
+  return 'http://localhost:3000';
+}
+
+/**
  * Gets brand-specific redirect URL for OAuth callbacks
  */
 export function getBrandCallbackUrl(): string {
-  if (typeof window === 'undefined') {
-    return '/auth/callback';
-  }
-  return `${window.location.origin}/auth/callback`;
+  return `${getSiteUrl()}/auth/callback`;
 }
 
 /**
