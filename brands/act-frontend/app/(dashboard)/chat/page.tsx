@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useChat } from '@ai-sdk/react';
 import { createClient } from '@/lib/supabase/client';
 import { ChatContainer } from '@/components/chat/chat-container';
 import { type ModelId } from '@/components/chat/chat-input';
@@ -55,49 +54,105 @@ export default function ChatPage() {
   // Refs for dynamic body values
   const brandIdRef = useRef(brandId);
   const conversationRef = useRef(currentConversation);
+  const selectedModelRef = useRef(selectedModel);
   
   useEffect(() => {
     brandIdRef.current = brandId;
     conversationRef.current = currentConversation;
-  }, [brandId, currentConversation]);
+    selectedModelRef.current = selectedModel;
+  }, [brandId, currentConversation, selectedModel]);
 
-  // AI Chat hook from Vercel AI SDK 5
-  // Note: body is static in v5, so we pass dynamic values at request time
-  const {
-    messages: aiMessages,
-    sendMessage,
-    status,
-    stop,
-    setMessages: setAiMessages,
-  } = useChat({
-    api: '/api/chat',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onFinish: async (message: any) => {
-      // Extract text content from message parts or content field
-      const content = message.parts
-        ?.filter((p: any) => p.type === 'text')
-        .map((p: any) => p.text)
-        .join('') || message.content || '';
+  // Simple message state (no AI SDK - it doesn't pass body correctly)
+  interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+  }
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stop = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setIsStreaming(false);
+  }, []);
+
+  // Custom sendMessage that actually works
+  const sendMessage = useCallback(async (text: string) => {
+    console.log('=== SENDING MESSAGE ===');
+    console.log('Using model:', selectedModel);
+    
+    // Add user message only
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
+    setAiMessages(prev => [...prev, userMsg]);
+    setStreamingContent('');
+    setIsStreaming(true);
+    
+    try {
+      abortControllerRef.current = new AbortController();
       
-      // Save assistant message to database
-      if (conversationRef.current && content) {
-        await saveMessageToDb({
-          conversation_id: conversationRef.current.id,
-          role: 'assistant',
-          content,
-        });
-        
-        // Update conversation's last_message_at
-        await supabase
-          .from('conversations')
-          .update({ last_message_at: new Date().toISOString() })
-          .eq('id', conversationRef.current.id);
+      // Get current messages for API call
+      const currentMessages = [...aiMessages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId: brandIdRef.current,
+          conversationId: conversationRef.current?.id,
+          model: selectedModel,
+          messages: currentMessages,
+          systemPrompt: conversationRef.current?.system_prompt,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
-    },
-  });
-  
-  // Derive streaming state from status
-  const isStreaming = status === 'streaming' || status === 'submitted';
+      
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        fullContent += chunk;
+        setStreamingContent(fullContent);
+      }
+      
+      // Add assistant message after streaming completes
+      if (fullContent) {
+        setAiMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: fullContent }]);
+        
+        // Save to DB
+        if (conversationRef.current) {
+          await saveMessageToDb({
+            conversation_id: conversationRef.current.id,
+            role: 'assistant',
+            content: fullContent,
+          });
+          await supabase
+            .from('conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', conversationRef.current.id);
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') console.error('Chat error:', err);
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+    }
+  }, [aiMessages, selectedModel, supabase]);
 
   // Fetch user session and brand info
   useEffect(() => {
@@ -256,6 +311,22 @@ export default function ChatPage() {
     const conversation = conversations.find((c) => c.id === conversationId);
     if (conversation) {
       setCurrentConversation(conversation);
+      // Sync model selector with conversation's model
+      // Map legacy model names to new ones
+      const modelMap: Record<string, ModelId> = {
+        'claude-4.5': 'claude-4.5',
+        'gpt-5.2': 'gpt-5.2',
+        'gemini-3.1': 'gemini-3.1',
+        // Legacy mappings
+        'claude-3-sonnet': 'claude-4.5',
+        'claude-3-opus': 'claude-4.5',
+        'gpt-4o': 'gpt-5.2',
+        'gpt-4': 'gpt-5.2',
+      };
+      const mappedModel = modelMap[conversation.model];
+      if (mappedModel) {
+        setSelectedModel(mappedModel);
+      }
     }
   }, [conversations]);
 
@@ -333,23 +404,12 @@ export default function ChatPage() {
       content: input,
     });
 
-    // Send to AI (AI SDK 5 uses sendMessage with body at request time)
+    // Send to AI (manual fetch with model)
     const messageText = input;
     setInput('');
     
-    // Pass dynamic body values at request time (required in AI SDK 5)
-    sendMessage(
-      { text: messageText },
-      {
-        body: {
-          brandId: brandIdRef.current,
-          conversationId: conversation.id,
-          model: selectedModel, // Use the selected model from dropdown
-          systemPrompt: conversation.system_prompt,
-        },
-      }
-    );
-  }, [input, brandId, userId, currentConversation, sendMessage, selectedModel]);
+    sendMessage(messageText);
+  }, [input, brandId, userId, currentConversation, sendMessage]);
 
   // Regenerate last response
   const handleRegenerate = useCallback(async () => {
@@ -360,23 +420,14 @@ export default function ChatPage() {
       // Remove the last assistant message from UI
       setAiMessages((prev) => prev.slice(0, -1));
     }
-  }, [dbMessages, currentConversation, setInput, setAiMessages]);
+  }, [dbMessages, currentConversation]);
 
-  // Combined messages for display - extract text from parts (AI SDK 5 format)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const displayMessages = aiMessages.map((m: any) => {
-    // Extract text content from message parts or use content directly
-    const content = m.parts
-      ?.filter((p: any) => p.type === 'text')
-      .map((p: any) => p.text)
-      .join('') || m.content || '';
-    
-    return {
-      id: m.id,
-      role: m.role as 'user' | 'assistant' | 'system',
-      content,
-    };
-  });
+  // Messages are already in the correct format
+  const displayMessages = aiMessages.map(m => ({
+    id: m.id,
+    role: m.role as 'user' | 'assistant' | 'system',
+    content: m.content,
+  }));
 
   if (!userId || !brandId) {
     return (
@@ -393,6 +444,7 @@ export default function ChatPage() {
       messages={displayMessages}
       isLoading={isLoadingConversations}
       isStreaming={isStreaming}
+      streamingContent={streamingContent}
       input={input}
       selectedModel={selectedModel}
       setInput={setInput}

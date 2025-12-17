@@ -29,9 +29,32 @@ const MODELS = {
 
 type ModelKey = keyof typeof MODELS;
 
+// Check which API keys are available
+function checkApiKeys() {
+  return {
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    openai: !!process.env.OPENAI_API_KEY,
+    google: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY || !!process.env.GOOGLE_API_KEY,
+  };
+}
+
 // Get the AI model instance based on provider
 function getModel(modelKey: string) {
   const modelConfig = MODELS[modelKey as ModelKey] || MODELS['claude-4.5'];
+  const keys = checkApiKeys();
+  
+  console.log('API Keys available:', keys);
+  console.log('Requested provider:', modelConfig.provider);
+  
+  // Check if the required API key exists
+  if (modelConfig.provider === 'openai' && !keys.openai) {
+    console.warn('OpenAI API key not found, falling back to Claude');
+    return anthropic('claude-sonnet-4-5');
+  }
+  if (modelConfig.provider === 'google' && !keys.google) {
+    console.warn('Google API key not found, falling back to Claude');
+    return anthropic('claude-sonnet-4-5');
+  }
   
   switch (modelConfig.provider) {
     case 'anthropic':
@@ -58,8 +81,11 @@ export async function POST(req: NextRequest) {
       systemPrompt 
     } = body;
 
-    // Log for debugging
-    console.log('Chat API received:', { brandId, model, messageCount: messages?.length });
+    // Log for debugging - full body
+    console.log('=== CHAT API DEBUG ===');
+    console.log('Full body received:', JSON.stringify(body, null, 2));
+    console.log('Model from body:', model);
+    console.log('========================');
 
     // Validate brand access (in production, verify user has access to this brand)
     if (!brandId) {
@@ -78,16 +104,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Build the system prompt with brand context
-    const defaultSystemPrompt = `You are a helpful AI assistant for brand management.
+    const modelConfig = MODELS[model as ModelKey] || MODELS['claude-4.5'];
+    const defaultSystemPrompt = `You are ${modelConfig.name}, a helpful AI assistant for brand management.
 You are assisting with brand: ${brandId}
+When asked what model you are, always say you are ${modelConfig.name} from ${modelConfig.provider}.
 Always provide helpful, accurate, and brand-appropriate responses.
 Be concise but thorough. Use markdown formatting when appropriate.`;
 
     const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
 
     // Get the AI model based on the model key
+    console.log('=== API MODEL DEBUG ===');
+    console.log('Model received:', model);
+    console.log('Model config:', MODELS[model as ModelKey]);
     const aiModel = getModel(model);
-    console.log('Using model:', model);
+    console.log('AI Model created:', aiModel);
 
     // Extract content from messages - handle both old format (content) and new format (parts)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,8 +147,8 @@ Be concise but thorough. Use markdown formatting when appropriate.`;
       temperature: 0.7,
     });
 
-    // Return streaming response (AI SDK 5 uses toUIMessageStreamResponse for chat UI)
-    return result.toUIMessageStreamResponse();
+    // Return plain text streaming response
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     
