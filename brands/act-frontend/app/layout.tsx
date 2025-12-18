@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Crimson_Text, DM_Sans, Roboto_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { getBrandConfig } from "../lib/brand";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const crimsonText = Crimson_Text({
@@ -50,7 +51,7 @@ export default function RootLayout({
   const brandConfig = getBrandConfig();
   
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${crimsonText.variable} ${dmSans.variable} ${robotoMono.variable} antialiased`}
         style={{
@@ -60,7 +61,14 @@ export default function RootLayout({
           '--brand-accent': brandConfig.colors.accent,
         } as React.CSSProperties}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
