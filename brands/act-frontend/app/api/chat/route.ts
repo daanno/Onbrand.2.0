@@ -4,9 +4,18 @@ import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { PDFParse } from 'pdf-parse';
 // MCP imports are conditionally loaded to prevent build errors
 import type { MCPServerConfig, MCPConnectionStatus } from '@/lib/mcp/types';
+type PDFParseConstructor = typeof import('pdf-parse')['PDFParse'];
+let PDFParseCtor: PDFParseConstructor | null = null;
+
+async function getPDFParseConstructor(): Promise<PDFParseConstructor> {
+  if (!PDFParseCtor) {
+    const module = await import('pdf-parse');
+    PDFParseCtor = module.PDFParse;
+  }
+  return PDFParseCtor;
+}
 
 // Tell Next.js this is a dynamic API route
 export const dynamic = 'force-dynamic';
@@ -150,14 +159,12 @@ async function extractPDFText(base64Data: string): Promise<string> {
     : base64Data;
   
   // Convert base64 to Uint8Array
-  const binaryString = atob(cleanBase64);
-  const data = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    data[i] = binaryString.charCodeAt(i);
-  }
+  const binaryBuffer = Buffer.from(cleanBase64, 'base64');
+  const data = new Uint8Array(binaryBuffer);
   
   try {
     // Use pdf-parse for production-grade extraction
+    const PDFParse = await getPDFParseConstructor();
     const parser = new PDFParse({ data });
     
     // Get text content
