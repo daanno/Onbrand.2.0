@@ -30,12 +30,25 @@ async function loadMCPClientManager() {
   }
 
   try {
-    const module = await import('./client-manager');
+    // Use eval to prevent Next.js from bundling this at build time
+    const importFn = new Function('specifier', 'return import(specifier)');
+    const module = await importFn('./client-manager');
     MCPClientManagerClass = module.MCPClientManager;
     return MCPClientManagerClass;
   } catch (error) {
     console.error('Failed to load MCP Client Manager:', error);
-    throw error;
+    // Return a stub implementation if MCP is not available
+    return class StubMCPManager {
+      async connect() { return { serverId: '', serverName: '', connected: false, error: 'MCP not available' }; }
+      async connectAll() { return []; }
+      async disconnect() {}
+      async disconnectAll() {}
+      async getAllTools() { return {}; }
+      async getServerTools() { return null; }
+      getClient() { return null; }
+      isConnected() { return false; }
+      getConnectedServers() { return []; }
+    };
   }
 }
 
