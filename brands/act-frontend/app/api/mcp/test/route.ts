@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       auth_token_encrypted: testConfig.auth_token_encrypted ? '***' : null,
     });
 
-    const manager = createMCPManager(testConfig.timeout_ms);
+    const manager = await createMCPManager(testConfig.timeout_ms);
     
     try {
       const status = await manager.connect(testConfig);

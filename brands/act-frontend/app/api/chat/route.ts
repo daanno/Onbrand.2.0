@@ -5,7 +5,8 @@ import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PDFParse } from 'pdf-parse';
-import { createMCPManager, type MCPServerConfig } from '@/lib/mcp';
+import { createMCPManager } from '@/lib/mcp/client-manager-loader';
+import type { MCPServerConfig, MCPConnectionStatus } from '@/lib/mcp/types';
 
 // Tell Next.js this is a dynamic API route
 export const dynamic = 'force-dynamic';
@@ -54,14 +55,14 @@ async function getMCPTools(brandId: string): Promise<{ tools: Record<string, unk
 
   console.log(`Found ${servers.length} MCP servers for brand ${brandId}`);
 
-  const manager = createMCPManager();
+  const manager = await createMCPManager();
   const statuses = await manager.connectAll(servers);
 
-  const connectedCount = statuses.filter(s => s.connected).length;
+  const connectedCount = statuses.filter((s: MCPConnectionStatus) => s.connected).length;
   console.log(`Connected to ${connectedCount}/${servers.length} MCP servers`);
 
   // Log any connection errors
-  statuses.filter(s => !s.connected).forEach(s => {
+  statuses.filter((s: MCPConnectionStatus) => !s.connected).forEach((s: MCPConnectionStatus) => {
     console.warn(`MCP server ${s.serverName} failed to connect: ${s.error}`);
   });
 
