@@ -5,7 +5,7 @@ import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PDFParse } from 'pdf-parse';
-import { createMCPManager } from '@/lib/mcp/client-manager-loader';
+// MCP imports are conditionally loaded to prevent build errors
 import type { MCPServerConfig, MCPConnectionStatus } from '@/lib/mcp/types';
 
 // Tell Next.js this is a dynamic API route
@@ -55,6 +55,8 @@ async function getMCPTools(brandId: string): Promise<{ tools: Record<string, unk
 
   console.log(`Found ${servers.length} MCP servers for brand ${brandId}`);
 
+  // Dynamically import MCP manager to prevent build-time bundling
+  const { createMCPManager } = await import('@/lib/mcp/client-manager-loader');
   const manager = await createMCPManager();
   const statuses = await manager.connectAll(servers);
 
