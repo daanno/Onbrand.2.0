@@ -81,10 +81,8 @@ async function loadMCPClientManager() {
   }
 
   try {
-    // Use string concatenation to prevent static analysis by bundler
-    // This is the ONLY way to prevent Turbopack from following the import
-    const modulePath = './client-' + 'manager';
-    const module = await import(/* webpackIgnore: true */ modulePath);
+    // Use direct relative path so the module is bundled and available at runtime
+    const module = await import('./client-manager');
     MCPClientManagerClass = module.MCPClientManager;
     return MCPClientManagerClass;
   } catch (error) {
