@@ -21,6 +21,36 @@ export interface IMCPClientManager {
 let MCPClientManagerClass: any = null;
 
 /**
+ * Stub implementation when MCP is not available
+ * This allows the app to function without MCP features
+ */
+class StubMCPManager implements IMCPClientManager {
+  async connect() { 
+    return { serverId: '', serverName: '', connected: false, error: 'MCP not available' }; 
+  }
+  async connectAll() { 
+    return []; 
+  }
+  async disconnect() {}
+  async disconnectAll() {}
+  async getAllTools() { 
+    return {}; 
+  }
+  async getServerTools() { 
+    return null; 
+  }
+  getClient() { 
+    return null; 
+  }
+  isConnected() { 
+    return false; 
+  }
+  getConnectedServers() { 
+    return []; 
+  }
+}
+
+/**
  * Dynamically load the MCP Client Manager only when needed
  * This prevents build-time errors from @ai-sdk/mcp
  */
@@ -29,26 +59,20 @@ async function loadMCPClientManager() {
     return MCPClientManagerClass;
   }
 
+  // Check if we're in a build environment
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.log('Build phase detected, using stub MCP manager');
+    return StubMCPManager;
+  }
+
   try {
-    // Use eval to prevent Next.js from bundling this at build time
-    const importFn = new Function('specifier', 'return import(specifier)');
-    const module = await importFn('./client-manager');
+    // Try to load the real implementation
+    const module = await import('./client-manager');
     MCPClientManagerClass = module.MCPClientManager;
     return MCPClientManagerClass;
   } catch (error) {
-    console.error('Failed to load MCP Client Manager:', error);
-    // Return a stub implementation if MCP is not available
-    return class StubMCPManager {
-      async connect() { return { serverId: '', serverName: '', connected: false, error: 'MCP not available' }; }
-      async connectAll() { return []; }
-      async disconnect() {}
-      async disconnectAll() {}
-      async getAllTools() { return {}; }
-      async getServerTools() { return null; }
-      getClient() { return null; }
-      isConnected() { return false; }
-      getConnectedServers() { return []; }
-    };
+    console.warn('MCP Client Manager not available, using stub:', error);
+    return StubMCPManager;
   }
 }
 
