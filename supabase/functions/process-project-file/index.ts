@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { extractText } from "npm:unpdf";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,54 +178,143 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-// Basic PDF text extraction
-// For production, consider using pdf-parse or similar library
+// Production-grade PDF text extraction using unpdf
 async function extractTextFromPDF(data: Uint8Array): Promise<string> {
-  // Convert to string and look for text streams
-  const decoder = new TextDecoder("latin1");
+  try {
+    // Use unpdf for production-grade PDF text extraction
+    const result = await extractText(data, { mergePages: true });
+    
+    console.log('unpdf extraction result:', {
+      totalPages: result.totalPages,
+      textLength: result.text?.length || 0
+    });
+    
+    if (result.text && result.text.trim().length > 50) {
+      // Clean up the extracted text
+      const cleanedText = result.text
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+      
+      console.log(`Successfully extracted ${cleanedText.length} characters from ${result.totalPages} pages`);
+      return cleanedText;
+    }
+    
+    // If unpdf didn't get much text, try fallback
+    console.log('unpdf returned minimal text, trying fallback extraction');
+    return await extractTextFromPDFFallback(data);
+    
+  } catch (error) {
+    console.error('unpdf extraction failed:', error);
+    // Fall back to manual extraction
+    return await extractTextFromPDFFallback(data);
+  }
+}
+
+// Fallback PDF extraction for edge cases
+async function extractTextFromPDFFallback(data: Uint8Array): Promise<string> {
+  const decoder = new TextDecoder('latin1');
   const pdfString = decoder.decode(data);
   
-  // Extract text between stream markers (simplified)
   const textParts: string[] = [];
   
-  // Look for text objects in PDF
-  const textRegex = /\(([^)]+)\)/g;
-  let match;
-  while ((match = textRegex.exec(pdfString)) !== null) {
-    const text = match[1]
-      .replace(/\\n/g, "\n")
-      .replace(/\\r/g, "")
-      .replace(/\\t/g, "\t")
-      .replace(/\\\\/g, "\\")
-      .replace(/\\([()])/g, "$1");
+  // Try to decompress and extract from FlateDecode streams
+  const streamRegex = /<<([^>]*)\/FlateDecode([^>]*)>>\s*stream\r?\n/g;
+  const endstreamRegex = /\r?\nendstream/g;
+  
+  let streamMatch;
+  while ((streamMatch = streamRegex.exec(pdfString)) !== null) {
+    const streamStart = streamMatch.index + streamMatch[0].length;
+    endstreamRegex.lastIndex = streamStart;
+    const endMatch = endstreamRegex.exec(pdfString);
+    if (!endMatch) continue;
     
-    if (text.trim() && !text.includes("\x00") && text.length > 1) {
-      textParts.push(text);
+    const streamEnd = endMatch.index;
+    const streamData = data.slice(streamStart, streamEnd);
+    
+    try {
+      // Try to decompress using DecompressionStream
+      const ds = new DecompressionStream('deflate');
+      const writer = ds.writable.getWriter();
+      const reader = ds.readable.getReader();
+      
+      writer.write(streamData);
+      writer.close();
+      
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
+      }
+      
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const decompressed = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        decompressed.set(chunk, offset);
+        offset += chunk.length;
+      }
+      
+      const content = new TextDecoder('latin1').decode(decompressed);
+      
+      // Extract text from Tj/TJ operators
+      const tjRegex = /\(([^)]*(?:\\.[^)]*)*)\)\s*Tj/g;
+      let tjMatch;
+      while ((tjMatch = tjRegex.exec(content)) !== null) {
+        if (tjMatch[1]) {
+          const text = tjMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\');
+          if (text.trim()) textParts.push(text);
+        }
+      }
+    } catch {
+      // Decompression failed, continue
     }
   }
   
-  // Also look for Tj and TJ operators
-  const tjRegex = /\[([^\]]+)\]\s*TJ/g;
-  while ((match = tjRegex.exec(pdfString)) !== null) {
-    const content = match[1];
-    const innerText = content.match(/\(([^)]+)\)/g);
-    if (innerText) {
-      innerText.forEach(t => {
-        const cleaned = t.slice(1, -1).replace(/\\([()])/g, "$1");
-        if (cleaned.trim()) {
-          textParts.push(cleaned);
-        }
+  // Also extract any uncompressed text
+  const simpleTextRegex = /\(([^)]{3,})\)\s*Tj/g;
+  let simpleMatch;
+  while ((simpleMatch = simpleTextRegex.exec(pdfString)) !== null) {
+    if (simpleMatch[1]) {
+      const text = simpleMatch[1].replace(/\\([nrt()])/g, (_, c) => {
+        const escapes: Record<string, string> = { n: '\n', r: '', t: '\t', '(': '(', ')': ')' };
+        return escapes[c] || c;
       });
+      if (text.trim() && !textParts.includes(text)) {
+        textParts.push(text);
+      }
     }
   }
-
-  const result = textParts.join(" ").replace(/\s+/g, " ").trim();
+  
+  // Extract metadata
+  const titleMatch = pdfString.match(/\/Title\s*\(([^)]+)\)/);
+  const authorMatch = pdfString.match(/\/Author\s*\(([^)]+)\)/);
+  
+  let metadata = '';
+  if (titleMatch?.[1]) metadata += `Title: ${titleMatch[1]}\n`;
+  if (authorMatch?.[1]) metadata += `Author: ${authorMatch[1]}\n`;
+  
+  const result = textParts
+    .filter(t => t && t.trim().length > 1)
+    .filter(t => {
+      const printable = (t.match(/[\x20-\x7E]/g) || []).length;
+      return printable / t.length > 0.7;
+    })
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   
   if (result.length < 50) {
-    return `[PDF file - text extraction limited]\nThe PDF may contain images or complex formatting that couldn't be extracted. Extracted content:\n${result}`;
+    return `[PDF file - limited extraction]\n${metadata}\nThe PDF uses compression or fonts that couldn't be fully processed.\n\nPartial content:\n${result.substring(0, 500)}`;
   }
   
-  return result;
+  return metadata ? `${metadata}\n${result}` : result;
 }
 
 // Basic DOCX text extraction - simplified approach

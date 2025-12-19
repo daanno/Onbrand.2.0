@@ -4,13 +4,14 @@ import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { PDFParse } from 'pdf-parse';
 
 // Tell Next.js this is a dynamic API route
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-// Use edge runtime for streaming
-export const runtime = "edge";
+// Use Node.js runtime for PDF extraction support
+export const runtime = "nodejs";
 
 // Create Supabase client for fetching project files (using service role to bypass RLS)
 function getSupabaseClient() {
@@ -82,6 +83,76 @@ interface ProcessedAttachment {
   name: string;
   mimeType: string;
   data: string; // base64 for images/PDFs, plain text for text files
+}
+
+// Production-grade PDF text extraction using pdf-parse library
+async function extractPDFText(base64Data: string): Promise<string> {
+  // Remove data URL prefix if present
+  const cleanBase64 = base64Data.includes(',')
+    ? base64Data.split(',')[1]
+    : base64Data;
+  
+  // Convert base64 to Uint8Array
+  const binaryString = atob(cleanBase64);
+  const data = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    data[i] = binaryString.charCodeAt(i);
+  }
+  
+  try {
+    // Use pdf-parse for production-grade extraction
+    const parser = new PDFParse({ data });
+    
+    // Get text content
+    const textResult = await parser.getText();
+    
+    // Build output with metadata
+    let output = '';
+    
+    // Add metadata if available
+    try {
+      const infoResult = await parser.getInfo();
+      if (infoResult.info) {
+        if (infoResult.info.Title) output += `Title: ${infoResult.info.Title}\n`;
+        if (infoResult.info.Author) output += `Author: ${infoResult.info.Author}\n`;
+        if (infoResult.info.Subject) output += `Subject: ${infoResult.info.Subject}\n`;
+        if (output) output += '\n';
+      }
+    } catch {
+      // Metadata extraction failed, continue
+    }
+    
+    // Add text content organized by page
+    if (textResult.pages && textResult.pages.length > 0) {
+      for (let i = 0; i < textResult.pages.length; i++) {
+        const pageText = textResult.pages[i]?.text || '';
+        if (pageText.trim()) {
+          output += `--- Page ${i + 1} ---\n${pageText.trim()}\n\n`;
+        }
+      }
+    } else if (textResult.text) {
+      output += textResult.text;
+    }
+    
+    // Clean up and destroy parser
+    await parser.destroy();
+    
+    output = output
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
+    
+    if (output.length < 50) {
+      return `[PDF file - minimal text content]\nThe PDF may contain primarily images or scanned content.\n\nExtracted text: ${output}`;
+    }
+    
+    console.log(`Extracted ${output.length} characters from PDF`);
+    return output;
+    
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error(`Failed to extract PDF text: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -201,14 +272,21 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
     console.log('AI Model created:', aiModel);
 
     // Extract content from messages - handle both old format (content) and new format (parts)
+    // Using for...of loop to support async PDF extraction
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const normalizedMessages = messages.map((m: any, index: number) => {
+    const normalizedMessages: any[] = [];
+    
+    for (let index = 0; index < messages.length; index++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const m = messages[index] as any;
       let content = m.content;
       
       // If content is not a string, try to extract from parts (AI SDK 5 format)
       if (!content && m.parts) {
         content = m.parts
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((p: any) => p.type === 'text')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((p: any) => p.text)
           .join('');
       }
@@ -253,12 +331,21 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
                 text: `\n\n--- Content from ${attachment.name} ---\n${attachment.data}\n--- End of ${attachment.name} ---\n\n`,
               });
             } else if (attachment.mimeType === 'application/pdf') {
-              // PDF handling would require server-side parsing
-              // For now, just note that a PDF was attached
-              contentParts.push({
-                type: 'text',
-                text: `\n\n[Note: PDF file "${attachment.name}" was attached. PDF content extraction is not yet supported.]\n\n`,
-              });
+              // Extract text from PDF using pdf.js
+              try {
+                const pdfText = await extractPDFText(attachment.data);
+                contentParts.push({
+                  type: 'text',
+                  text: `\n\n--- Content from ${attachment.name} (PDF) ---\n${pdfText}\n--- End of ${attachment.name} ---\n\n`,
+                });
+                console.log(`Extracted ${pdfText.length} chars from PDF: ${attachment.name}`);
+              } catch (pdfError) {
+                console.error('PDF extraction failed:', pdfError);
+                contentParts.push({
+                  type: 'text',
+                  text: `\n\n[Note: PDF file "${attachment.name}" was attached but could not be processed. Error: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}]\n\n`,
+                });
+              }
             }
           }
         }
@@ -269,17 +356,23 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
           contentParts.unshift({ type: 'text', text: 'What can you tell me about this image?' });
         }
         
-        return {
+        normalizedMessages.push({
           role: m.role as 'user' | 'assistant' | 'system',
           content: contentParts,
-        };
+        });
+        continue;
       }
       
-      return {
+      const normalizedMsg = {
         role: m.role as 'user' | 'assistant' | 'system',
         content: content || '',
       };
-    }).filter((m: any) => m.content && (typeof m.content === 'string' ? m.content : m.content.length > 0));
+      
+      // Filter out empty messages
+      if (normalizedMsg.content && (typeof normalizedMsg.content === 'string' ? normalizedMsg.content : normalizedMsg.content.length > 0)) {
+        normalizedMessages.push(normalizedMsg);
+      }
+    }
 
     console.log('=== ATTACHMENT DEBUG ===');
     console.log('Attachments received:', attachments?.length || 0);
