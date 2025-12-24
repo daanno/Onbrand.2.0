@@ -441,7 +441,7 @@ export default function ChatPage() {
       // RLS handles visibility - returns user's own + shared conversations from their brand
       const { data, error } = await supabase
         .from('conversations')
-        .select('*')
+        .select('*, user_id')
         .eq('brand_id', brandId)
         .eq('archived', false)
         .order('last_message_at', { ascending: false });
@@ -664,6 +664,20 @@ export default function ChatPage() {
       }
     }
   }, [currentConversation, supabase]);
+
+  // Toggle project visibility
+  const handleToggleProjectVisibility = useCallback(async (projectId: string, visibility: 'private' | 'shared') => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ visibility })
+      .eq('id', projectId);
+
+    if (!error) {
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, visibility } : p))
+      );
+    }
+  }, [supabase]);
 
   // Project handlers
   const handleSelectProject = useCallback((projectId: string | null) => {
@@ -1046,6 +1060,7 @@ export default function ChatPage() {
       onDeleteConversation={handleDeleteConversation}
       onArchiveConversation={handleArchiveConversation}
       onToggleVisibility={handleToggleVisibility}
+      onToggleProjectVisibility={handleToggleProjectVisibility}
       onSendMessage={handleSendMessage}
       onStopGeneration={stop}
       onRegenerate={handleRegenerate}

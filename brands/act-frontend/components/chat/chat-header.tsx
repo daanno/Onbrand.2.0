@@ -28,32 +28,42 @@ interface Conversation {
   title: string;
   model: string;
   last_message_at: string;
+  visibility?: 'private' | 'shared' | null;
+  user_id?: string;
 }
 
 interface ChatHeaderProps {
   conversation?: Conversation | null;
   conversations: Conversation[];
+  currentUserId?: string;
   isLoading?: boolean;
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onArchiveConversation?: (id: string) => void;
+  onToggleVisibility?: (id: string, visibility: 'private' | 'shared') => void;
   onRegenerate?: () => void;
   onOpenSettings?: () => void;
   brandName?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
 export function ChatHeader({
   conversation,
   conversations,
+  currentUserId,
   isLoading = false,
   onNewChat,
   onSelectConversation,
   onDeleteConversation,
   onArchiveConversation,
+  onToggleVisibility,
   onRegenerate,
   onOpenSettings,
   brandName,
+  userName,
+  userEmail,
 }: ChatHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -71,12 +81,16 @@ export function ChatHeader({
             <ChatSidebar
               conversations={conversations}
               currentConversationId={conversation?.id}
+              currentUserId={currentUserId}
               isLoading={isLoading}
               onNewChat={onNewChat}
               onSelectConversation={onSelectConversation}
               onDeleteConversation={onDeleteConversation}
               onArchiveConversation={onArchiveConversation}
+              onToggleVisibility={onToggleVisibility}
               brandName={brandName}
+              userName={userName}
+              userEmail={userEmail}
             />
           </SheetContent>
         </Sheet>

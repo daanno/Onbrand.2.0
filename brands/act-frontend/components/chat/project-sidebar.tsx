@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -53,7 +53,12 @@ import {
   File,
   X,
   Loader2,
+  Globe,
+  Copy,
+  Check,
+  Link as LinkIcon,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 interface ProjectFile {
   id: string;
@@ -104,6 +109,7 @@ interface ProjectSidebarProps {
   onDeleteFile?: (fileId: string) => Promise<void>;
   onArchiveConversation?: (id: string) => void;
   onToggleVisibility?: (id: string, visibility: 'private' | 'shared') => void;
+  onToggleProjectVisibility?: (id: string, visibility: 'private' | 'shared') => void;
   onCollapse?: () => void;
   brandName?: string;
   userName?: string;
@@ -144,12 +150,14 @@ export function ProjectSidebar({
   onDeleteFile,
   onArchiveConversation,
   onToggleVisibility,
+  onToggleProjectVisibility,
   onCollapse,
   brandName,
   userName,
   userEmail,
 }: ProjectSidebarProps) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [manuallyCollapsed, setManuallyCollapsed] = useState<Set<string>>(new Set());
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[0]);
@@ -161,8 +169,16 @@ export function ProjectSidebar({
       const newSet = new Set(prev);
       if (newSet.has(projectId)) {
         newSet.delete(projectId);
+        // Track that user manually collapsed this project
+        setManuallyCollapsed((mc) => new Set(mc).add(projectId));
       } else {
         newSet.add(projectId);
+        // Remove from manually collapsed when user expands
+        setManuallyCollapsed((mc) => {
+          const newMc = new Set(mc);
+          newMc.delete(projectId);
+          return newMc;
+        });
       }
       return newSet;
     });
@@ -204,9 +220,9 @@ export function ProjectSidebar({
     }
   };
 
-  // Auto-expand current project
+  // Auto-expand current project (unless user manually collapsed it)
   const effectiveExpandedProjects = new Set(expandedProjects);
-  if (currentProjectId && !effectiveExpandedProjects.has(currentProjectId)) {
+  if (currentProjectId && !effectiveExpandedProjects.has(currentProjectId) && !manuallyCollapsed.has(currentProjectId)) {
     effectiveExpandedProjects.add(currentProjectId);
   }
 
@@ -433,6 +449,15 @@ interface ProjectItemProps {
   onToggleVisibility?: (id: string, visibility: 'private' | 'shared') => void;
 }
 
+// Types for project sharing
+interface ProjectTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+}
+
 function ProjectItem({
   project,
   conversations,
@@ -455,9 +480,165 @@ function ProjectItem({
 }: ProjectItemProps) {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [newName, setNewName] = useState(project.name);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Project sharing state
+  const [teamMembers, setTeamMembers] = useState<ProjectTeamMember[]>([]);
+  const [existingShares, setExistingShares] = useState<{id: string; userId: string; name: string; status: string}[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [publicShareUrl, setPublicShareUrl] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [publicCopied, setPublicCopied] = useState(false);
+
+  // Load team members and existing shares when share dialog opens
+  const loadShareData = async () => {
+    setIsLoadingMembers(true);
+    try {
+      // Fetch team members
+      const res = await fetch('/api/brand-members');
+      if (res.ok) {
+        const data = await res.json();
+        setTeamMembers(data.members || []);
+      }
+
+      // Fetch existing shares for all conversations in the project
+      const allShares: {id: string; userId: string; name: string; status: string}[] = [];
+      const seenUsers = new Set<string>();
+      
+      for (const conv of conversations) {
+        const sharesRes = await fetch(`/api/conversation-shares?conversationId=${conv.id}`);
+        if (sharesRes.ok) {
+          const data = await sharesRes.json();
+          for (const share of (data.shares || [])) {
+            if (!seenUsers.has(share.userId)) {
+              seenUsers.add(share.userId);
+              allShares.push(share);
+            }
+          }
+        }
+      }
+      setExistingShares(allShares);
+    } catch (error) {
+      console.error('Error loading share data:', error);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
+
+  const handleOpenShareDialog = () => {
+    setShowShareDialog(true);
+    setShareSuccess(false);
+    setSelectedMembers(new Set());
+    setPublicShareUrl(null);
+    loadShareData();
+  };
+
+  const handleToggleMember = (memberId: string) => {
+    setSelectedMembers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(memberId)) {
+        newSet.delete(memberId);
+      } else {
+        newSet.add(memberId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleShareProject = async () => {
+    if (selectedMembers.size === 0 || conversations.length === 0) return;
+    
+    setIsSharing(true);
+    try {
+      // Share all conversations in the project with selected members
+      const userIds = Array.from(selectedMembers);
+      
+      for (const conv of conversations) {
+        await fetch('/api/conversation-shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: conv.id,
+            userIds,
+            message: `Shared as part of project "${project.name}"`,
+          }),
+        });
+      }
+      
+      setShareSuccess(true);
+      // Refresh existing shares
+      loadShareData();
+      setTimeout(() => {
+        setShareSuccess(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Error sharing project:', error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleRemoveProjectShare = async (userId: string) => {
+    try {
+      // Remove shares for all conversations in the project for this user
+      for (const conv of conversations) {
+        const sharesRes = await fetch(`/api/conversation-shares?conversationId=${conv.id}`);
+        if (sharesRes.ok) {
+          const data = await sharesRes.json();
+          const shareToRemove = (data.shares || []).find((s: any) => s.userId === userId);
+          if (shareToRemove) {
+            await fetch(`/api/conversation-shares?shareId=${shareToRemove.id}`, {
+              method: 'DELETE',
+            });
+          }
+        }
+      }
+      // Refresh existing shares
+      loadShareData();
+    } catch (error) {
+      console.error('Error removing share:', error);
+    }
+  };
+
+  const handleGenerateProjectPublicLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceType: 'project',
+          resourceId: project.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate link');
+      }
+
+      const data = await response.json();
+      setPublicShareUrl(data.shareUrl);
+    } catch (error) {
+      console.error('Error generating public link:', error);
+      alert('Failed to generate public link. Please try again.');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleCopyPublicUrl = async () => {
+    if (publicShareUrl) {
+      await navigator.clipboard.writeText(publicShareUrl);
+      setPublicCopied(true);
+      setTimeout(() => setPublicCopied(false), 2000);
+    }
+  };
 
   const handleRename = () => {
     if (newName.trim() && newName !== project.name) {
@@ -562,6 +743,10 @@ function ProjectItem({
             >
               <Pencil className="mr-2 h-4 w-4" />
               Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleOpenShareDialog}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share Project
             </DropdownMenuItem>
             {!project.is_default && (
               <>
@@ -729,11 +914,224 @@ function ProjectItem({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share Project Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share project
+            </DialogTitle>
+            <DialogDescription>
+              Share all {conversations.length} chat{conversations.length !== 1 ? 's' : ''} in &quot;{project.name}&quot; with team members
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {conversations.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No chats in this project to share
+              </p>
+            ) : (
+              <>
+                {/* Team Member Selection */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Share with Team Members</Label>
+                  </div>
+
+                  {isLoadingMembers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : teamMembers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">
+                      No other team members found in your organization
+                    </p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-2 border rounded-lg p-2">
+                      {teamMembers.map((member) => {
+                        const existingShare = existingShares.find(s => s.userId === member.id);
+                        const isSelected = selectedMembers.has(member.id);
+                        
+                        return (
+                          <div
+                            key={member.id}
+                            className={cn(
+                              "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
+                              isSelected ? "bg-primary/10" : "hover:bg-accent"
+                            )}
+                            onClick={() => handleToggleMember(member.id)}
+                          >
+                            <div className={cn(
+                              "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                              isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
+                            )}>
+                              {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{member.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                            </div>
+                            {existingShare && (
+                              <span className={cn(
+                                "text-xs px-2 py-0.5 rounded-full",
+                                existingShare.status === 'accepted' ? "bg-green-100 text-green-700" :
+                                existingShare.status === 'pending' ? "bg-yellow-100 text-yellow-700" :
+                                "bg-red-100 text-red-700"
+                              )}>
+                                {existingShare.status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Share Button */}
+                  {teamMembers.length > 0 && conversations.length > 0 && (
+                    <Button
+                      onClick={handleShareProject}
+                      disabled={selectedMembers.size === 0 || isSharing}
+                      className="w-full"
+                    >
+                      {isSharing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sharing...
+                        </>
+                      ) : shareSuccess ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Invitation Sent!
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Send Invitation ({selectedMembers.size} selected)
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {/* Currently Shared With */}
+                  {existingShares.length > 0 && (
+                    <div className="pt-2">
+                      <p className="text-xs text-muted-foreground mb-2">Currently shared with:</p>
+                      <div className="space-y-1">
+                        {existingShares.map((share) => (
+                          <div key={share.id} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                            <span>{share.name} ({share.status})</span>
+                            <button
+                              onClick={() => handleRemoveProjectShare(share.userId)}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Public Link Sharing (Anyone with Link) */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Public Link (Anyone)</Label>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    Anyone with this link can view (read-only)
+                  </p>
+
+                  {!publicShareUrl ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateProjectPublicLink}
+                      disabled={isGeneratingLink}
+                      className="w-full"
+                    >
+                      {isGeneratingLink ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <LinkIcon className="mr-2 h-4 w-4" />
+                          Generate Public Link
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          readOnly 
+                          value={publicShareUrl}
+                          className="flex-1 text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCopyPublicUrl}
+                          className="shrink-0"
+                        >
+                          {publicCopied ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        ✓ Public link created • No expiration • Unlimited views
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// Conversation item component
+// Team member interface for sharing
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+  role?: string;
+}
+
+// Share record interface
+interface ShareRecord {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
+// Conversation item component with team member selection sharing
 interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
@@ -754,7 +1152,166 @@ function ConversationItem({
   onToggleVisibility,
 }: ConversationItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const isShared = conversation.visibility === 'shared';
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [publicCopied, setPublicCopied] = useState(false);
+  const [publicShareUrl, setPublicShareUrl] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  
+  // Team member sharing state
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [existingShares, setExistingShares] = useState<ShareRecord[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  
+  const isShared = existingShares.length > 0;
+
+  // Fetch shares on mount to show icon
+  useEffect(() => {
+    const fetchShareStatus = async () => {
+      try {
+        const res = await fetch(`/api/conversation-shares?conversationId=${conversation.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setExistingShares(data.shares || []);
+        }
+      } catch (error) {
+        console.error('Error fetching share status:', error);
+      }
+    };
+    fetchShareStatus();
+  }, [conversation.id]);
+
+  // Fetch team members and existing shares when dialog opens
+  const loadShareData = async () => {
+    setIsLoadingMembers(true);
+    try {
+      // Fetch team members
+      const membersRes = await fetch('/api/brand-members');
+      if (membersRes.ok) {
+        const data = await membersRes.json();
+        setTeamMembers(data.members || []);
+      }
+
+      // Fetch existing shares for this conversation
+      const sharesRes = await fetch(`/api/conversation-shares?conversationId=${conversation.id}`);
+      if (sharesRes.ok) {
+        const data = await sharesRes.json();
+        setExistingShares(data.shares || []);
+        // Pre-select users who already have access
+        const sharedUserIds = new Set((data.shares || []).map((s: ShareRecord) => s.userId));
+        setSelectedMembers(sharedUserIds);
+      }
+    } catch (error) {
+      console.error('Error loading share data:', error);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
+
+  const handleOpenShareDialog = () => {
+    setShowShareDialog(true);
+    setShareSuccess(false);
+    loadShareData();
+  };
+
+  const handleToggleMember = (memberId: string) => {
+    setSelectedMembers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(memberId)) {
+        newSet.delete(memberId);
+      } else {
+        newSet.add(memberId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleShareWithSelected = async () => {
+    if (selectedMembers.size === 0) return;
+    
+    setIsSharing(true);
+    try {
+      // Get newly selected members (not already shared)
+      const existingIds = new Set(existingShares.map(s => s.userId));
+      const newMembers = Array.from(selectedMembers).filter(id => !existingIds.has(id));
+      
+      if (newMembers.length > 0) {
+        const response = await fetch('/api/conversation-shares', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: conversation.id,
+            userIds: newMembers,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to share');
+        }
+      }
+      
+      setShareSuccess(true);
+      // Reload shares to update the UI
+      await loadShareData();
+      
+      setTimeout(() => setShareSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error sharing conversation:', error);
+      alert('Failed to share conversation. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleRemoveShare = async (shareId: string) => {
+    try {
+      const response = await fetch(`/api/conversation-shares?shareId=${shareId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await loadShareData();
+      }
+    } catch (error) {
+      console.error('Error removing share:', error);
+    }
+  };
+
+  const handleCopyPublicUrl = async () => {
+    if (publicShareUrl) {
+      await navigator.clipboard.writeText(publicShareUrl);
+      setPublicCopied(true);
+      setTimeout(() => setPublicCopied(false), 2000);
+    }
+  };
+
+  const handleGeneratePublicLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceType: 'conversation',
+          resourceId: conversation.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate link');
+      }
+
+      const data = await response.json();
+      setPublicShareUrl(data.shareUrl);
+    } catch (error) {
+      console.error('Error generating public link:', error);
+      alert('Failed to generate public link. Please try again.');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
 
   return (
     <>
@@ -768,7 +1325,7 @@ function ConversationItem({
         <MessageSquare className="h-4 w-4 shrink-0 opacity-50" />
         <span className="flex-1 truncate">{conversation.title}</span>
         {isShared && (
-          <span title="Shared with team">
+          <span title="Shared with team members">
             <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
           </span>
         )}
@@ -788,25 +1345,16 @@ function ConversationItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            {isOwner && onToggleVisibility && (
+            {isOwner && (
               <>
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleVisibility();
+                    handleOpenShareDialog();
                   }}
                 >
-                  {isShared ? (
-                    <>
-                      <Lock className="mr-2 h-4 w-4" />
-                      Make Private
-                    </>
-                  ) : (
-                    <>
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share with Team
-                    </>
-                  )}
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
@@ -849,6 +1397,193 @@ function ConversationItem({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Enhanced Share Dialog with Team Member Selection */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share conversation
+            </DialogTitle>
+            <DialogDescription>
+              Select team members to share this conversation with
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Team Member Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Share with Team Members</Label>
+              </div>
+
+              {isLoadingMembers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : teamMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No other team members found in your organization
+                </p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-2 border rounded-lg p-2">
+                  {teamMembers.map((member) => {
+                    const existingShare = existingShares.find(s => s.userId === member.id);
+                    const isSelected = selectedMembers.has(member.id);
+                    
+                    return (
+                      <div
+                        key={member.id}
+                        className={cn(
+                          "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
+                          isSelected ? "bg-primary/10" : "hover:bg-accent"
+                        )}
+                        onClick={() => handleToggleMember(member.id)}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                          isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
+                        )}>
+                          {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{member.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                        </div>
+                        {existingShare && (
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            existingShare.status === 'accepted' ? "bg-green-100 text-green-700" :
+                            existingShare.status === 'pending' ? "bg-yellow-100 text-yellow-700" :
+                            "bg-red-100 text-red-700"
+                          )}>
+                            {existingShare.status}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Share Button */}
+              {teamMembers.length > 0 && (
+                <Button
+                  onClick={handleShareWithSelected}
+                  disabled={selectedMembers.size === 0 || isSharing}
+                  className="w-full"
+                >
+                  {isSharing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sharing...
+                    </>
+                  ) : shareSuccess ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Invitation Sent!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Send Invitation ({selectedMembers.size} selected)
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* Currently Shared With */}
+              {existingShares.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">Currently shared with:</p>
+                  <div className="space-y-1">
+                    {existingShares.map((share) => (
+                      <div key={share.id} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                        <span>{share.name} ({share.status})</span>
+                        <button
+                          onClick={() => handleRemoveShare(share.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Public Link Sharing (Anyone with Link) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Public Link (Anyone)</Label>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Anyone with this link can view (read-only)
+              </p>
+
+              {!publicShareUrl ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGeneratePublicLink}
+                  disabled={isGeneratingLink}
+                  className="w-full"
+                >
+                  {isGeneratingLink ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                      Generate Public Link
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      readOnly 
+                      value={publicShareUrl}
+                      className="flex-1 text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopyPublicUrl}
+                      className="shrink-0"
+                    >
+                      {publicCopied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ✓ Public link created • No expiration • Unlimited views
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

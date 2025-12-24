@@ -125,6 +125,9 @@ importers:
       ai:
         specifier: ^5.0.114
         version: 5.0.114(zod@3.25.76)
+      bcryptjs:
+        specifier: ^2.4.3
+        version: 2.4.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -195,6 +198,9 @@ importers:
       '@testing-library/react':
         specifier: ^14.1.2
         version: 14.3.1(@types/react@18.3.27)(react-dom@18.3.1)(react@18.3.1)
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@types/node':
         specifier: ^20
         version: 20.19.25
@@ -3391,6 +3397,10 @@ packages:
       '@babel/types': 7.28.5
     dev: true
 
+  /@types/bcryptjs@2.4.6:
+    resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
+    dev: true
+
   /@types/d3-array@3.2.2:
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
     dev: false
@@ -4280,6 +4290,10 @@ packages:
   /baseline-browser-mapping@2.8.32:
     resolution: {integrity: sha512-OPz5aBThlyLFgxyhdwf/s2+8ab3OvT7AdTNvKHBwpXomIYeXqpUUuT8LrdtxZSsWJ4R4CU1un4XGh5Ez3nlTpw==}
     hasBin: true
+
+  /bcryptjs@2.4.3:
+    resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
+    dev: false
 
   /bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}

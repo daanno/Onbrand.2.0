@@ -75,6 +75,7 @@ interface ChatContainerProps {
   onDeleteConversation: (id: string) => void;
   onArchiveConversation?: (id: string) => void;
   onToggleVisibility?: (id: string, visibility: 'private' | 'shared') => void;
+  onToggleProjectVisibility?: (id: string, visibility: 'private' | 'shared') => void;
   onSendMessage: (attachments?: Attachment[]) => void;
   onStopGeneration?: () => void;
   onRegenerate?: () => void;
@@ -114,6 +115,7 @@ export function ChatContainer({
   onDeleteConversation,
   onArchiveConversation,
   onToggleVisibility,
+  onToggleProjectVisibility,
   onSendMessage,
   onStopGeneration,
   onRegenerate,
@@ -176,6 +178,7 @@ export function ChatContainer({
             onDeleteFile={onDeleteFile}
             onArchiveConversation={onArchiveConversation}
             onToggleVisibility={onToggleVisibility}
+            onToggleProjectVisibility={onToggleProjectVisibility}
             onCollapse={() => setSidebarCollapsed(true)}
             brandName={brandName}
             userName={userName}

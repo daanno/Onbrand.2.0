@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Plus, 
   MoreHorizontal, 
@@ -34,6 +43,9 @@ import {
   Users,
   Copy,
   Check,
+  Link as LinkIcon,
+  Globe,
+  Loader2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -248,29 +260,83 @@ function ConversationItem({
 }: ConversationItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const isShared = conversation.visibility === 'shared';
+  const [teamCopied, setTeamCopied] = useState(false);
+  const [publicCopied, setPublicCopied] = useState(false);
+  const [publicShareUrl, setPublicShareUrl] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [teamShareMode, setTeamShareMode] = useState<'private' | 'shared'>(conversation.visibility || 'private');
+  const [existingShares, setExistingShares] = useState<any[]>([]);
+  const isShared = existingShares.length > 0;
+
+  // Fetch shares on mount to show icon
+  useEffect(() => {
+    const fetchShareStatus = async () => {
+      try {
+        const res = await fetch(`/api/conversation-shares?conversationId=${conversation.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setExistingShares(data.shares || []);
+        }
+      } catch (error) {
+        console.error('Error fetching share status:', error);
+      }
+    };
+    fetchShareStatus();
+  }, [conversation.id]);
   
-  // Generate share URL - only accessible by users in the same brand
-  const shareUrl = typeof window !== 'undefined' 
+  // Team share URL - only accessible by users in the same brand
+  const teamShareUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/chat/${conversation.id}`
     : '';
 
-  const handleCopyUrl = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyTeamUrl = async () => {
+    await navigator.clipboard.writeText(teamShareUrl);
+    setTeamCopied(true);
+    setTimeout(() => setTeamCopied(false), 2000);
+  };
+
+  const handleCopyPublicUrl = async () => {
+    if (publicShareUrl) {
+      await navigator.clipboard.writeText(publicShareUrl);
+      setPublicCopied(true);
+      setTimeout(() => setPublicCopied(false), 2000);
+    }
+  };
+
+  const handleGeneratePublicLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceType: 'conversation',
+          resourceId: conversation.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate link');
+      }
+
+      const data = await response.json();
+      setPublicShareUrl(data.shareUrl);
+    } catch (error) {
+      console.error('Error generating public link:', error);
+      alert('Failed to generate public link. Please try again.');
+    } finally {
+      setIsGeneratingLink(false);
+    }
   };
 
   const handleShare = () => {
-    if (isShared) {
-      // Already shared - show the share URL dialog
-      setShowShareDialog(true);
-    } else {
-      // Not shared yet - toggle visibility and show dialog
-      onToggleVisibility?.();
-      setShowShareDialog(true);
-    }
+    // Open share dialog
+    setShowShareDialog(true);
+  };
+
+  const handleTeamShareChange = (newMode: 'private' | 'shared') => {
+    setTeamShareMode(newMode);
+    onToggleVisibility?.();
   };
   
   return (
@@ -318,19 +384,8 @@ function ConversationItem({
                   }}
                 >
                   <Share2 className="mr-2 h-4 w-4" />
-                  {isShared ? 'Copy Link' : 'Share with Team'}
+                  Share
                 </DropdownMenuItem>
-                {isShared && (
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleVisibility();
-                    }}
-                  >
-                    <Lock className="mr-2 h-4 w-4" />
-                    Make Private
-                  </DropdownMenuItem>
-                )}
               </>
             )}
             {/* Delete - shows confirmation dialog */}
@@ -372,50 +427,144 @@ function ConversationItem({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Share Dialog */}
-      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
+      {/* Enhanced Share Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share conversation
+            </DialogTitle>
+            <DialogDescription>
+              Share this conversation with your team or via public link
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Team Sharing (Brand Members Only) */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Share2 className="h-5 w-5" />
-                Share conversation
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Team Access (Brand Members)</Label>
               </div>
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Anyone in your organization with this link can view this conversation.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex items-center gap-2 mt-2">
-            <Input 
-              readOnly 
-              value={shareUrl}
-              className="flex-1 text-sm"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCopyUrl}
-              className="shrink-0"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 mr-1" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </>
+              
+              <RadioGroup
+                value={teamShareMode}
+                onValueChange={(value) => handleTeamShareChange(value as 'private' | 'shared')}
+                className="space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="private" id="private" />
+                  <Label htmlFor="private" className="font-normal cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      <span>Private (only you)</span>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="shared" id="shared" />
+                  <Label htmlFor="shared" className="font-normal cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>Shared (all brand members)</span>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {teamShareMode === 'shared' && (
+                <div className="flex items-center gap-2 pl-6">
+                  <Input 
+                    readOnly 
+                    value={teamShareUrl}
+                    className="flex-1 text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyTeamUrl}
+                    className="shrink-0"
+                  >
+                    {teamCopied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               )}
+            </div>
+
+            <Separator />
+
+            {/* Public Link Sharing (Anyone with Link) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Public Link (Anyone)</Label>
+              </div>
+              
+              <p className="text-sm text-muted-foreground">
+                Anyone with this link can view (read-only)
+              </p>
+
+              {!publicShareUrl ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGeneratePublicLink}
+                  disabled={isGeneratingLink}
+                  className="w-full"
+                >
+                  {isGeneratingLink ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="mr-2 h-4 w-4" />
+                      Generate Public Link
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      readOnly 
+                      value={publicShareUrl}
+                      className="flex-1 text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCopyPublicUrl}
+                      className="shrink-0"
+                    >
+                      {publicCopied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ✓ Public link created • No expiration • Unlimited views
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowShareDialog(false)}>
+              Done
             </Button>
           </div>
-          <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
