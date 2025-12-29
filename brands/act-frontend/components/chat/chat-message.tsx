@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import hljs from 'highlight.js/lib/core';
+import { motion, useSpring, useTransform } from 'motion/react';
 // Import common languages
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -386,15 +387,56 @@ export function ThinkingMessage() {
         <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
           <Sparkles className="size-3.5 animate-pulse" />
         </div>
-        <div className="flex flex-col w-full">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span className="animate-pulse">Thinking</span>
-            <span className="animate-bounce delay-100">.</span>
-            <span className="animate-bounce delay-200">.</span>
-            <span className="animate-bounce delay-300">.</span>
-          </div>
-        </div>
+        <FillTextLoader text="Generating answer" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * FillTextLoader
+ * A minimal Motion-based "fill text" loader inspired by Motion's Fill text example:
+ * https://motion.dev/examples/react-loading-fill-text?platform=js
+ */
+function FillTextLoader({ text = 'Loading' }: { text?: string }) {
+  // Spring progress from 0 -> 1 -> 0, looped
+  const progress = useSpring(0, { stiffness: 200, damping: 30, mass: 0.4 });
+
+  useEffect(() => {
+    let mounted = true;
+    async function loop() {
+      while (mounted) {
+        await progress.start(1, { duration: 1.2, ease: 'easeInOut' });
+        await progress.start(0, { duration: 1.2, ease: 'easeInOut' });
+      }
+    }
+    loop();
+    return () => {
+      mounted = false;
+    };
+  }, [progress]);
+
+  // Create an inset clip-path that grows upward with progress
+  const clipPath = useTransform(progress, (p) => {
+    const topInset = (1 - p) * 100; // 100% -> 0%
+    return `inset(${topInset}% 0 0 0)`;
+  });
+
+  return (
+    <div className="flex items-center">
+      <div className="relative inline-block text-sm leading-none">
+        {/* Base (unfilled) */}
+        <span className="text-muted-foreground">{text}</span>
+        {/* Filled overlay */}
+        <motion.span
+          aria-hidden
+          className="absolute left-0 top-0 text-foreground"
+          style={{ clipPath }}
+        >
+          {text}
+        </motion.span>
+      </div>
+      <span className="ml-1 text-muted-foreground">…</span>
     </div>
   );
 }
