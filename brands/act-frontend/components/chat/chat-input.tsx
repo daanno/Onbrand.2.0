@@ -8,8 +8,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ArrowUp, Square, Paperclip, ChevronDown, Check, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, ChevronDown, Check, X, FileText, Image as ImageIcon, Globe, Folder, MessageSquare, GraduationCap, Minimize2, BookOpen, Briefcase, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
 // Provider Logo Components
@@ -57,6 +60,12 @@ export interface Attachment {
   file: File;
   preview?: string;
   type: 'image' | 'document';
+}
+
+// Minimal project for selector
+export interface MinimalProject {
+	id: string;
+	name: string;
 }
 
 // Allowed file types
@@ -398,10 +407,21 @@ const PROMPT_SUGGESTIONS = [
   { trigger: 'best practices for', completion: 'creating' },
 ];
 
+// Style presets for AI responses
+const STYLE_PRESETS = [
+  { id: 'normal' as const, label: 'Normal', icon: MessageSquare },
+  { id: 'learning' as const, label: 'Learning', icon: GraduationCap },
+  { id: 'concise' as const, label: 'Concise', icon: Minimize2 },
+  { id: 'explanatory' as const, label: 'Explanatory', icon: BookOpen },
+  { id: 'formal' as const, label: 'Formal', icon: Briefcase },
+];
+
+export type StylePreset = typeof STYLE_PRESETS[number]['id'];
+
 interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
-  onSubmit: (attachments?: Attachment[]) => void;
+	onSubmit: (attachments?: Attachment[], options?: { useWebSearch?: boolean }) => void;
   onStop?: () => void;
   isStreaming?: boolean;
   isLoading?: boolean;
@@ -409,6 +429,17 @@ interface ChatInputProps {
   disabled?: boolean;
   model?: ModelId;
   onModelChange?: (model: ModelId) => void;
+	// Project selection
+	projects?: MinimalProject[];
+	currentProjectId?: string | null;
+	currentConversationProjectId?: string | null;
+	onSelectProject?: (projectId: string | null) => void;
+	onCreateProject?: (name: string, color?: string) => Promise<string | undefined>;
+	onMoveConversationToProject?: (projectId: string) => void;
+	onClearProject?: () => void;
+	// Style selection
+	currentConversationStylePreset?: StylePreset | null;
+	onStyleChange?: (style: StylePreset) => void;
 }
 
 export function ChatInput({
@@ -422,10 +453,20 @@ export function ChatInput({
   disabled = false,
   model = 'claude-4.5',
   onModelChange,
+	projects = [],
+	currentProjectId = null,
+	currentConversationProjectId = null,
+	onSelectProject,
+	onCreateProject,
+	onMoveConversationToProject,
+	onClearProject,
+	currentConversationStylePreset = null,
+	onStyleChange,
 }: ChatInputProps) {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [prediction, setPrediction] = useState<string>('');
+	const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
   const selectedModel = AI_MODELS.find(m => m.id === model) || AI_MODELS[0];
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -612,7 +653,7 @@ export function ChatInput({
       e.preventDefault();
       setPrediction(''); // Clear prediction on submit
       if (!disabled && !isLoading && !isStreaming && (input.trim() || attachments.length > 0)) {
-        onSubmit(attachments.length > 0 ? attachments : undefined);
+				onSubmit(attachments.length > 0 ? attachments : undefined, { useWebSearch });
         setAttachments([]);
         resetHeight();
       }
@@ -621,7 +662,7 @@ export function ChatInput({
 
   const handleSubmit = () => {
     if (!disabled && !isLoading && !isStreaming && (input.trim() || attachments.length > 0)) {
-      onSubmit(attachments.length > 0 ? attachments : undefined);
+			onSubmit(attachments.length > 0 ? attachments : undefined, { useWebSearch });
       setAttachments([]);
       resetHeight();
     }
@@ -730,6 +771,113 @@ export function ChatInput({
         <div className="flex items-center justify-between px-3 py-2 border-t border-border/50">
           {/* Left side - Attachment + Model Selector */}
           <div className="flex items-center gap-1">
+						{/* Plus menu */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+									disabled={disabled || !isReady}
+								>
+									<span className="sr-only">More options</span>
+									{/* simple plus glyph */}
+									<span className="text-lg leading-none">+</span>
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start" className="w-56">
+								<DropdownMenuItem
+									onClick={() => fileInputRef.current?.click()}
+									className="flex items-center gap-2"
+								>
+									<Paperclip className="size-4" />
+									<span>Add files or images</span>
+								</DropdownMenuItem>
+								{/* Add to project submenu */}
+								{(projects.length > 0 || onCreateProject) && (
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
+											<span>Add to project</span>
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent className="w-64">
+											{/* Existing projects */}
+											{projects.length > 0 && (
+												<div className="py-1">
+													{projects.map((p) => (
+														<DropdownMenuItem
+															key={p.id}
+															onClick={() => {
+																if (onMoveConversationToProject) {
+																	onMoveConversationToProject(p.id);
+																} else {
+																	onSelectProject?.(p.id);
+																}
+															}}
+															className="flex items-center justify-between gap-2"
+														>
+															<span className="truncate">{p.name}</span>
+															{currentConversationProjectId === p.id && <Check className="size-4" />}
+														</DropdownMenuItem>
+													))}
+												</div>
+											)}
+											{/* Divider */}
+											{onCreateProject && <div className="my-1 h-px bg-border" />}
+											{/* Create new project */}
+											{onCreateProject && (
+												<DropdownMenuItem
+													onClick={async () => {
+														const name = window.prompt('Project name');
+														if (!name) return;
+														const id = await onCreateProject(name);
+														if (id) {
+															if (onMoveConversationToProject) {
+																onMoveConversationToProject(id);
+															} else {
+																onSelectProject?.(id);
+															}
+														}
+													}}
+													className="flex items-center gap-2"
+												>
+													<span className="text-sm">+ Start a new project</span>
+												</DropdownMenuItem>
+											)}
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+								)}
+								{/* Use style submenu */}
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger className="flex items-center justify-between gap-2">
+										<span>Use style</span>
+									</DropdownMenuSubTrigger>
+									<DropdownMenuSubContent className="w-56">
+										{STYLE_PRESETS.map((style) => (
+											<DropdownMenuItem
+												key={style.id}
+												onClick={() => onStyleChange?.(style.id)}
+												className="flex items-center justify-between gap-2"
+											>
+												<div className="flex items-center gap-2">
+													<style.icon className="size-4" />
+													<span>{style.label}</span>
+												</div>
+												{currentConversationStylePreset === style.id && <Check className="size-4" />}
+											</DropdownMenuItem>
+										))}
+									</DropdownMenuSubContent>
+								</DropdownMenuSub>
+								<DropdownMenuItem
+									onClick={() => setUseWebSearch(prev => !prev)}
+									className="flex items-center justify-between gap-2"
+								>
+									<span>Web Search</span>
+									{useWebSearch ? <Check className="size-4" /> : null}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+
             <Button
               type="button"
               variant="ghost"
@@ -777,6 +925,46 @@ export function ChatInput({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+						{/* Web Search active chip */}
+						{useWebSearch && (
+							<button
+								onClick={() => setUseWebSearch(false)}
+								className="group ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground hover:bg-muted/80 transition-colors"
+							>
+								<Globe className="size-3" />
+								<span>Web Search on</span>
+								<X className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+							</button>
+						)}
+					{/* Project selected chip */}
+					{currentConversationProjectId && projects.length > 0 && (
+						(() => {
+							const p = projects.find(pj => pj.id === currentConversationProjectId);
+							if (!p) return null;
+							return (
+								<button
+									onClick={onClearProject}
+									className="group ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground max-w-[140px] hover:bg-muted/80 transition-colors"
+								>
+									<Folder className="size-3" />
+									<span className="truncate">Project: {p.name}</span>
+									<X className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+								</button>
+							);
+						})()
+					)}
+					{/* Style selected chip */}
+					{currentConversationStylePreset && currentConversationStylePreset !== 'normal' && (
+						<button
+							onClick={() => onStyleChange?.('normal')}
+							className="group ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-foreground hover:bg-muted/80 transition-colors"
+						>
+							<Sparkles className="size-3" />
+							<span className="capitalize">{currentConversationStylePreset}</span>
+							<X className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+						</button>
+					)}
           </div>
 
           {/* Right side - Send/Stop Button */}

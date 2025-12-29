@@ -78,6 +78,11 @@ interface ChatContainerProps {
   onToggleVisibility?: (id: string, visibility: 'private' | 'shared') => void;
   onToggleProjectVisibility?: (id: string, visibility: 'private' | 'shared') => void;
   onSendMessage: (attachments?: Attachment[]) => void;
+	// Extended: allow passing options like web search toggle
+	// Keeping backwards compatibility by making it optional
+	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+	// @ts-ignore
+	onSendMessage: (attachments?: Attachment[], options?: { useWebSearch?: boolean }) => void;
   onStopGeneration?: () => void;
   onRegenerate?: () => void;
   onModelChange: (model: ModelId) => void;
@@ -89,6 +94,13 @@ interface ChatContainerProps {
   onRenameProject?: (id: string, name: string) => void;
   onUploadFile?: (projectId: string, file: File) => Promise<void>;
   onDeleteFile?: (fileId: string) => Promise<void>;
+	// Move current conversation to a project (used by + menu)
+	onMoveConversationToProject?: (projectId: string) => void;
+	onClearProject?: () => void;
+	// Style change handler
+	onStyleChange?: (style: string) => void;
+	pendingStylePreset?: string;
+	pendingProjectId?: string | null;
 
   // User info
   brandName?: string;
@@ -133,6 +145,11 @@ export function ChatContainer({
   userName,
   userEmail,
   jobFunction,
+	onMoveConversationToProject,
+	onClearProject,
+	onStyleChange,
+	pendingStylePreset,
+	pendingProjectId,
 }: ChatContainerProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [isCreatingNewChat, setIsCreatingNewChat] = useState(false);
@@ -285,8 +302,8 @@ export function ChatContainer({
               activeToolCall={activeToolCall}
             />
 
-            {/* Suggested Actions - Show when no messages */}
-            {messages.length === 0 && (
+            {/* Suggested Actions - Show when no messages and input is empty */}
+            {messages.length === 0 && !input.trim() && (
               <SuggestedActions 
                 onSelect={(text) => {
                   setInput(text);
@@ -300,13 +317,24 @@ export function ChatContainer({
               <ChatInput
                 input={input}
                 setInput={setInput}
-                onSubmit={onSendMessage}
+								onSubmit={onSendMessage}
                 onStop={onStopGeneration}
                 isStreaming={isStreaming}
                 isLoading={isLoading}
                 placeholder="Send a message..."
                 model={selectedModel}
                 onModelChange={onModelChange}
+								// New: project actions in + menu
+								projects={projects?.map(p => ({ id: p.id, name: p.name })) || []}
+								currentProjectId={currentProjectId || null}
+								currentConversationProjectId={currentConversation?.project_id || pendingProjectId || null}
+								onSelectProject={onSelectProject}
+								onCreateProject={onCreateProject}
+						onMoveConversationToProject={onMoveConversationToProject}
+						onClearProject={onClearProject}
+						// Style selection
+						currentConversationStylePreset={(currentConversation?.style_preset || pendingStylePreset) as any}
+						onStyleChange={onStyleChange}
               />
             </div>
           </>

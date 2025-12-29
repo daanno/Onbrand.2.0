@@ -270,7 +270,7 @@ export function ChatMessage({
                 'w-fit break-words rounded-2xl px-3 py-2 text-white': isUser,
                 'bg-transparent px-0 py-0 text-left max-w-none': !isUser,
               })}
-              style={isUser ? { backgroundColor: '#006cff' } : undefined}
+              style={isUser ? { backgroundColor: '#889def' } : undefined}
             >
               {isUser ? (
                 <div className="whitespace-pre-wrap break-words text-sm">

@@ -1,9 +1,10 @@
-import { streamText, stepCountIs } from "ai";
+import { streamText, stepCountIs, tool } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 // MCP imports are conditionally loaded to prevent build errors
 import type { MCPServerConfig, MCPConnectionStatus } from '@/lib/mcp/types';
 
@@ -103,6 +104,15 @@ function checkApiKeys() {
   };
 }
 
+// Style instructions for different writing styles
+const STYLE_INSTRUCTIONS: Record<string, string> = {
+  normal: '',
+  learning: '\n\nIMPORTANT: Explain concepts step-by-step with examples and analogies. Break down complex topics into digestible parts. Act as a patient teacher.',
+  concise: '\n\nIMPORTANT: Be extremely brief and to the point. Use short sentences and bullet points. Minimize explanations unless specifically asked.',
+  explanatory: '\n\nIMPORTANT: Provide detailed explanations with context, background, and reasoning. Include examples and clarifications. Be thorough.',
+  formal: '\n\nIMPORTANT: Use formal, professional language. Maintain a business tone with proper grammar and structure. Avoid casual expressions.',
+};
+
 // Get the AI model instance based on provider
 function getModel(modelKey: string) {
   const modelConfig = MODELS[modelKey as ModelKey] || MODELS['claude-4.5'];
@@ -184,7 +194,8 @@ export async function POST(req: NextRequest) {
       model = 'claude-sonnet-4-5',
       messages = [],
       systemPrompt,
-      attachments = [] as ProcessedAttachment[]
+      attachments = [] as ProcessedAttachment[],
+      useWebSearch = false
     } = body;
 
     // Log for debugging - full body
@@ -271,6 +282,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fetch conversation style if conversationId exists
+    let styleInstruction = '';
+    if (conversationId) {
+      try {
+        const supabase = getSupabaseClient();
+        const { data: conversation } = await supabase
+          .from('conversations')
+          .select('style_preset')
+          .eq('id', conversationId)
+          .single();
+        
+        if (conversation?.style_preset) {
+          styleInstruction = STYLE_INSTRUCTIONS[conversation.style_preset] || '';
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversation style:', error);
+      }
+    }
+
     // Build the system prompt with brand context
     const modelConfig = MODELS[model as ModelKey] || MODELS['claude-4.5'];
     const defaultSystemPrompt = `You are ${modelConfig.name}, a helpful AI assistant for brand management.
@@ -279,7 +309,7 @@ When asked what model you are, always say you are ${modelConfig.name} from ${mod
 Always provide helpful, accurate, and brand-appropriate responses.
 Be concise but thorough. Use markdown formatting when appropriate.${projectContext}`;
 
-    const finalSystemPrompt = systemPrompt ? `${systemPrompt}${projectContext}` : defaultSystemPrompt;
+    const finalSystemPrompt = systemPrompt ? `${systemPrompt}${projectContext}${styleInstruction}` : `${defaultSystemPrompt}${styleInstruction}`;
 
     // Get the AI model based on the model key
     console.log('=== API MODEL DEBUG ===');
@@ -436,14 +466,56 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
         temperature: 0.7,
       };
 
-      // Add MCP tools if available
-      if (hasMCPTools) {
-        streamOptions.tools = mcpTools;
-        // Allow multiple tool call steps for agentic behavior
+      // Build tools map
+      const tools: Record<string, unknown> = { ...(hasMCPTools ? mcpTools : {}) };
+
+      // Optional Web Search tool via Tavily
+      if (useWebSearch) {
+        const tavilyKey = process.env.TAVILY_API_KEY;
+        if (!tavilyKey) {
+          console.warn('TAVILY_API_KEY not set; web search disabled');
+        } else {
+          const webSearch = tool({
+            description: 'Search the web and return top results',
+            inputSchema: z.object({
+              query: z.string().describe('Search query'),
+              maxResults: z.number().min(1).max(10).default(5),
+            }),
+            execute: async ({ query, maxResults }) => {
+              const res = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  api_key: tavilyKey,
+                  query,
+                  max_results: maxResults,
+                  include_answer: true,
+                  search_depth: 'basic',
+                }),
+              });
+              const data = await res.json();
+              const results = (data?.results || []).map((r: any) => ({
+                title: r.title,
+                url: r.url,
+                snippet: r.content,
+              }));
+              return {
+                answer: data?.answer || null,
+                results,
+              };
+            },
+          });
+          tools.webSearch = webSearch;
+        }
+      }
+
+      const hasTools = Object.keys(tools).length > 0;
+      if (hasTools) {
+        streamOptions.tools = tools;
         streamOptions.stopWhen = stepCountIs(5);
-        // Add tool choice to allow the model to use tools
         streamOptions.toolChoice = 'auto';
-        // Debug: log each step
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         streamOptions.onStepFinish = ({ text, toolCalls, toolResults, finishReason }: any) => {
           console.log('=== STEP FINISHED ===');
@@ -457,8 +529,8 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
 
       const result = streamText(streamOptions);
 
-      // Create a custom stream that includes tool call markers
-      if (hasMCPTools) {
+      // Create a custom stream that includes tool call markers (for any tools)
+      if (hasTools) {
         const encoder = new TextEncoder();
         let toolCallsSent = new Set<string>();
         
@@ -476,16 +548,33 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
               } else if (part.type === 'tool-result') {
                 // Send tool result marker
                 controller.enqueue(encoder.encode(`\n[TOOL_RESULT:${part.toolName}]\n`));
+                // If webSearch, append simple sources list
+                try {
+                  // @ts-expect-error runtime chunk shape
+                  const out = part?.result || part?.output || part;
+                  const sources = out?.results;
+                  if (Array.isArray(sources) && sources.length > 0) {
+                    const lines = sources
+                      .slice(0, 5)
+                      .map((r: any, i: number) => `${i + 1}. ${r.title} - ${r.url}`)
+                      .join('\n');
+                    controller.enqueue(encoder.encode(`\n\nSources:\n${lines}\n`));
+                  }
+                } catch {
+                  // ignore
+                }
               } else if (part.type === 'text-delta') {
                 controller.enqueue(encoder.encode(part.text));
               }
             }
             controller.close();
             
-            // Cleanup MCP
-            await cleanupMCP().catch(err => {
-              console.error('MCP cleanup error:', err);
-            });
+            // Cleanup MCP (if any)
+            if (hasMCPTools) {
+              await cleanupMCP().catch(err => {
+                console.error('MCP cleanup error:', err);
+              });
+            }
           },
         });
 
@@ -494,8 +583,7 @@ Be concise but thorough. Use markdown formatting when appropriate.${projectConte
         });
       }
 
-      // If we have MCP tools, we need to clean up after streaming completes
-      // Use the result's promise to handle cleanup
+      // Clean up MCP after non-streaming when tools used
       if (hasMCPTools) {
         // Schedule cleanup when the text generation is complete
         result.text.then(() => {

@@ -61,6 +61,7 @@ interface Conversation {
   title: string;
   model: string;
   system_prompt: string | null;
+  style_preset?: string;
   last_message_at: string;
   created_at: string;
   last_message_preview?: string;
@@ -107,6 +108,12 @@ export default function ChatPage() {
   // Model selection state
   const [selectedModel, setSelectedModel] = useState<ModelId>('claude-4.5');
   
+  // Style preset state for new conversations
+  const [pendingStylePreset, setPendingStylePreset] = useState<string>('normal');
+  
+  // Pending project ID for new conversations (doesn't affect UI navigation)
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
+  
   // Refs for dynamic body values
   const brandIdRef = useRef(brandId);
   const conversationRef = useRef(currentConversation);
@@ -146,7 +153,7 @@ export default function ChatPage() {
   }, []);
 
   // Custom sendMessage that actually works
-  const sendMessage = useCallback(async (text: string, attachments?: Attachment[]) => {
+  const sendMessage = useCallback(async (text: string, attachments?: Attachment[], options?: { useWebSearch?: boolean }) => {
     console.log('=== SENDING MESSAGE ===');
     console.log('Using model:', selectedModel);
     console.log('Attachments:', attachments?.length || 0);
@@ -239,6 +246,7 @@ export default function ChatPage() {
         messages: currentMessages,
         systemPrompt: conversationRef.current?.system_prompt,
         attachments: processedAttachments.length > 0 ? processedAttachments : undefined,
+        useWebSearch: options?.useWebSearch === true ? true : undefined,
       };
       
       console.log('=== CHAT API REQUEST ===');
@@ -648,6 +656,8 @@ export default function ChatPage() {
     setDbMessages([]);
     setAiMessages([]);
     setInput(''); // Clear input field
+    setPendingStylePreset('normal'); // Reset pending style to normal
+    setPendingProjectId(null); // Reset pending project
     // If projectId provided, set it as current project
     if (projectId) {
       setCurrentProjectId(projectId);
@@ -659,6 +669,9 @@ export default function ChatPage() {
     const conversation = conversations.find((c) => c.id === conversationId);
     if (conversation) {
       setCurrentConversation(conversation);
+      // Reset pending style when selecting an existing conversation
+      setPendingStylePreset(conversation.style_preset || 'normal');
+      setPendingProjectId(null); // Reset pending project
       // Sync model selector with conversation's model
       // Map legacy model names to new ones
       const modelMap: Record<string, ModelId> = {
@@ -775,6 +788,78 @@ export default function ChatPage() {
       setAiMessages([]);
     }
   }, [setAiMessages]);
+
+  // Move the current conversation to a specific project (reassign)
+  const handleMoveConversationToProject = useCallback(async (projectId: string) => {
+    if (!currentConversation) {
+      // No open conversation: store the project ID for when conversation is created
+      // Don't change currentProjectId to avoid navigating away
+      setPendingProjectId(projectId);
+      return;
+    }
+    if (currentConversation.project_id === projectId) {
+      return;
+    }
+    // Update in DB
+    const { error } = await supabase
+      .from('conversations')
+      .update({ project_id: projectId })
+      .eq('id', currentConversation.id);
+    if (error) {
+      console.error('Failed to move conversation to project:', error.message);
+      alert(`Failed to move conversation: ${error.message}`);
+      return;
+    }
+    // Update local state
+    setCurrentConversation(prev => prev ? { ...prev, project_id: projectId } : prev);
+    setConversations(prev => prev.map(c => c.id === currentConversation.id ? { ...c, project_id: projectId } : c));
+  }, [currentConversation, supabase]);
+
+  const handleClearProject = useCallback(() => {
+    // Clear pending project for new conversations
+    setPendingProjectId(null);
+    
+    // If there's an existing conversation, move it to null (General)
+    if (currentConversation && currentConversation.project_id) {
+      supabase
+        .from('conversations')
+        .update({ project_id: null })
+        .eq('id', currentConversation.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Failed to clear project:', error.message);
+            return;
+          }
+          // Update local state
+          setCurrentConversation(prev => prev ? { ...prev, project_id: null } : prev);
+          setConversations(prev => prev.map(c => c.id === currentConversation.id ? { ...c, project_id: null } : c));
+        });
+    }
+  }, [currentConversation, supabase]);
+
+  const handleStyleChange = useCallback(async (style: string) => {
+    if (!currentConversation) {
+      // No conversation yet - store for when conversation is created
+      setPendingStylePreset(style);
+      return;
+    }
+    
+    const { error } = await supabase
+      .from('conversations')
+      .update({ style_preset: style })
+      .eq('id', currentConversation.id);
+    
+    if (error) {
+      console.error('Failed to update style:', error.message);
+      return;
+    }
+    
+    // Update local state
+    setCurrentConversation(prev => prev ? { ...prev, style_preset: style } : prev);
+    setConversations(prev => 
+      prev.map(c => c.id === currentConversation.id ? { ...c, style_preset: style } : c)
+    );
+  }, [currentConversation, supabase]);
 
   const handleCreateProject = useCallback(async (name: string, color?: string): Promise<string | undefined> => {
     if (!brandId || !userId) return undefined;
@@ -1022,7 +1107,7 @@ export default function ChatPage() {
   }, [projectFiles, supabase]);
 
   // Send message
-  const handleSendMessage = useCallback(async (attachments?: Attachment[]) => {
+  const handleSendMessage = useCallback(async (attachments?: Attachment[], options?: { useWebSearch?: boolean }) => {
     // Allow sending if there's input text OR attachments
     const hasContent = input.trim() || (attachments && attachments.length > 0);
     
@@ -1039,7 +1124,7 @@ export default function ChatPage() {
 
     let conversation = currentConversation;
 
-    // Create conversation if none exists
+    // Create conversation if none exists (or we intentionally reset above)
     if (!conversation) {
       const titleBase = input.trim() || 
         (attachments?.[0]?.file.name ? `Attached: ${attachments[0].file.name}` : 'New Chat');
@@ -1052,9 +1137,10 @@ export default function ChatPage() {
         .insert({
           brand_id: brandId,
           user_id: userId,
-          project_id: currentProjectId,
+          project_id: pendingProjectId || currentProjectId,
           title,
           model: selectedModel,
+          style_preset: pendingStylePreset,
         })
         .select()
         .single();
@@ -1096,7 +1182,7 @@ export default function ChatPage() {
     const messageText = input;
     setInput('');
     
-    sendMessage(messageText, attachments);
+    sendMessage(messageText, attachments, options);
   }, [input, brandId, userId, currentConversation, currentProjectId, sendMessage, selectedModel, supabase]);
 
   // Regenerate last response
@@ -1157,6 +1243,11 @@ export default function ChatPage() {
       onRenameProject={handleRenameProject}
       onUploadFile={handleUploadFile}
       onDeleteFile={handleDeleteFile}
+      onMoveConversationToProject={handleMoveConversationToProject}
+      onClearProject={handleClearProject}
+      onStyleChange={handleStyleChange}
+      pendingStylePreset={pendingStylePreset}
+      pendingProjectId={pendingProjectId}
       brandName={brandName}
       currentUserId={userId}
       userName={userName}

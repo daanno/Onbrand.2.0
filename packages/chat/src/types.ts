@@ -40,6 +40,7 @@ export interface Conversation {
   title: string;
   model: ChatModel;
   system_prompt: string | null;
+  style_preset: StylePreset;
   settings: ChatSettings;
   total_tokens_used: number;
   total_cost_usd: number;
@@ -77,6 +78,8 @@ export type ChatModel =
   | 'gpt-4o'
   | 'gpt-4o-mini'
   | 'gemini-pro';
+
+export type StylePreset = 'normal' | 'learning' | 'concise' | 'explanatory' | 'formal';
 
 export interface ChatSettings {
   temperature: number;

@@ -653,7 +653,7 @@ function ProjectItem({
   };
 
   return (
-    <div>
+    <div className="group/folder">
       <div
         className={cn(
           'flex items-center rounded-lg transition-colors px-1',
@@ -694,11 +694,11 @@ function ProjectItem({
           {conversations.length}
         </span>
         
-        {/* More menu */}
+        {/* More menu - only visible on hover */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="p-1 rounded hover:bg-accent opacity-60 hover:opacity-100 shrink-0"
+              className="p-1 rounded hover:bg-accent opacity-0 group-hover/folder:opacity-60 hover:!opacity-100 shrink-0 transition-opacity"
               onClick={(e) => e.stopPropagation()}
               title="More"
             >
@@ -816,7 +816,7 @@ function ProjectItem({
             {files.map((file) => (
               <div
                 key={file.id}
-                className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-xs bg-muted/30 hover:bg-muted/50"
+                className="group/file flex items-center gap-2 rounded-md px-2 py-1.5 text-xs bg-muted/30 hover:bg-muted/50"
               >
                 <File className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="flex-1 truncate" title={file.name}>
@@ -828,15 +828,12 @@ function ProjectItem({
                 {file.status === 'processing' && (
                   <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 )}
-                {file.status === 'ready' && (
-                  <span className="text-green-500 text-[10px]">✓</span>
-                )}
                 {file.status === 'error' && (
                   <span className="text-destructive text-[10px]">!</span>
                 )}
                 {onDeleteFile && (
                   <button
-                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover/file:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteFile(file.id);
@@ -1299,7 +1296,7 @@ function ConversationItem({
     <>
       <div
         className={cn(
-          'group relative flex items-center gap-2 rounded-lg pl-3 pr-8 py-2 text-sm transition-colors cursor-pointer',
+          'group/conversation relative flex items-center gap-2 rounded-lg pl-3 pr-8 py-2 text-sm transition-colors cursor-pointer',
           isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
         )}
         onClick={onSelect}
@@ -1320,7 +1317,7 @@ function ConversationItem({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 shrink-0"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 shrink-0 opacity-0 group-hover/conversation:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="h-4 w-4" />
