@@ -78,10 +78,10 @@ export function TopNav({ user, onSignOut }: TopNavProps) {
         {/* Logo - Left aligned */}
         <Link href="/dashboard" className="flex items-center">
           <Image
-            src="/images/Logo.png"
+            src="/images/onbrand-logo.png"
             alt="onbrand"
-            width={160}
-            height={40}
+            width={180}
+            height={45}
             priority
             className="h-10 w-auto"
           />

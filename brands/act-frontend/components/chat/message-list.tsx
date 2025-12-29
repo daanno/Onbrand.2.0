@@ -86,7 +86,8 @@ export function MessageList({
             />
           )}
 
-          {isLoading && !isStreaming && <ThinkingMessage />}
+          {/* Show loading indicator when waiting for response or while streaming */}
+          {((isLoading && !isStreaming) || (isStreaming && !streamingContent) || (isStreaming && streamingContent)) && <ThinkingMessage />}
 
           {/* Active Tool Call Indicator */}
           {activeToolCall && (

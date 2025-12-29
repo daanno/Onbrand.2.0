@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -235,8 +237,22 @@ export function ProjectSidebar({
 
   return (
     <div className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center px-3 py-3">
+      {/* Logo Header */}
+      <div className="flex items-center justify-between px-3 py-3 border-b border-sidebar-border">
+        <Link href="/dashboard" className="flex items-center">
+          <Image
+            src="/images/onbrand-logo.png"
+            alt="onbrand"
+            width={140}
+            height={35}
+            priority
+            className="h-8 w-auto"
+          />
+        </Link>
+      </div>
+
+      {/* Action Buttons Header */}
+      <div className="flex items-center px-3 py-2">
         <div className="flex items-center gap-1">
           {onCollapse && (
             <Button

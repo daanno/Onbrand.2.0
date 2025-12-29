@@ -8,6 +8,7 @@ import { useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import hljs from 'highlight.js/lib/core';
 import { motion, useSpring, useTransform } from 'motion/react';
 import { animate } from 'motion';
+import { LoadingJumpingDots } from './loading-dots';
 // Import common languages
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -389,11 +390,8 @@ export function ThinkingMessage() {
           <Sparkles className="size-3.5 animate-pulse" />
         </div>
         <div className="flex flex-col w-full">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span className="animate-pulse">Thinking</span>
-            <span className="animate-bounce delay-100">.</span>
-            <span className="animate-bounce delay-200">.</span>
-            <span className="animate-bounce delay-300">.</span>
+          <div className="flex items-center gap-3 py-2">
+            <LoadingJumpingDots />
           </div>
         </div>
       </div>
